@@ -392,30 +392,83 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     data_list = [chat_id, turn_id, message_to_send, "$undefined", "$undefined", [], "$undefined", [], "none", False]
     chat_stream_data = json.dumps(data_list)
     
-    try:
-        response_stream = session.post(f'https://yupp.ai/chat/{chat_id}?stream=true', headers=chat_stream_headers, data=chat_stream_data.encode('utf-8'), stream=True)
-    except requests.exceptions.ProxyError:
-        console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung ke streaming melalui proxy.[/bold red]")
-        return
-    except requests.exceptions.RequestException as e:
-        console.print(f"   [bold red]❌ Error koneksi streaming: {e}[/bold red]")
-        return
+    # --- PENAMBAHAN: Timeout dan retry untuk VPS ---
+    max_retries = 3
+    retry_count = 0
     
-    if response_stream.status_code == 200:
-        console.print("   [green]📡 Koneksi streaming berhasil. Mendengarkan respons...[/green]")
-        for line in response_stream.iter_lines():
-            if line and line.decode('utf-8').startswith('a:'):
-                json_string = line.decode('utf-8')[2:]
-                try:
-                    data = json.loads(json_string)
-                    if 'unclaimedRewardInfo' in data and data['unclaimedRewardInfo'] and 'rewardId' in data['unclaimedRewardInfo']:
-                        extracted_reward_id = data['unclaimedRewardInfo']['rewardId']
-                        console.print(f"   [bold green]✅ Reward ID DITEMUKAN:[/bold green] [yellow]{extracted_reward_id}[/yellow]")
-                        break 
-                except json.JSONDecodeError: pass
+    while retry_count < max_retries:
+        try:
+            console.print(f"   [dim]Mencoba koneksi streaming (attempt {retry_count + 1}/{max_retries})...[/dim]")
+            
+            # --- PENAMBAHAN: Timeout yang lebih panjang untuk VPS ---
+            response_stream = session.post(
+                f'https://yupp.ai/chat/{chat_id}?stream=true', 
+                headers=chat_stream_headers, 
+                data=chat_stream_data.encode('utf-8'), 
+                stream=True,
+                timeout=(30, 60)  # (connect_timeout, read_timeout)
+            )
+            
+            if response_stream.status_code == 200:
+                console.print("   [green]📡 Koneksi streaming berhasil. Mendengarkan respons...[/green]")
+                
+                # --- PENAMBAHAN: Timeout untuk membaca stream ---
+                response_stream.raw.sock.settimeout(30)  # 30 detik timeout untuk membaca
+                
+                line_count = 0
+                for line in response_stream.iter_lines():
+                    line_count += 1
+                    if line_count > 1000:  # Batas maksimal baris untuk mencegah infinite loop
+                        console.print("   [yellow]⚠️  Mencapai batas maksimal baris, menghentikan stream...[/yellow]")
+                        break
+                        
+                    if line and line.decode('utf-8').startswith('a:'):
+                        json_string = line.decode('utf-8')[2:]
+                        try:
+                            data = json.loads(json_string)
+                            if 'unclaimedRewardInfo' in data and data['unclaimedRewardInfo'] and 'rewardId' in data['unclaimedRewardInfo']:
+                                extracted_reward_id = data['unclaimedRewardInfo']['rewardId']
+                                console.print(f"   [bold green]✅ Reward ID DITEMUKAN:[/bold green] [yellow]{extracted_reward_id}[/yellow]")
+                                break 
+                        except json.JSONDecodeError as e:
+                            console.print(f"   [dim]JSON decode error: {e}[/dim]")
+                            continue
+                        except Exception as e:
+                            console.print(f"   [dim]Error parsing data: {e}[/dim]")
+                            continue
+                
+                # Jika berhasil mendapatkan reward ID, keluar dari loop retry
+                if extracted_reward_id:
+                    break
+                else:
+                    console.print(f"   [yellow]⚠️  Attempt {retry_count + 1}: Tidak ada Reward ID ditemukan[/yellow]")
+                    
+            else:
+                console.print(f"   [red]❌ HTTP Status: {response_stream.status_code}[/red]")
+                console.print(f"   [dim]Response: {response_stream.text[:200]}...[/dim]")
+                
+        except requests.exceptions.Timeout:
+            console.print(f"   [yellow]⚠️  Timeout pada attempt {retry_count + 1}[/yellow]")
+        except requests.exceptions.ConnectionError as e:
+            console.print(f"   [yellow]⚠️  Connection error pada attempt {retry_count + 1}: {e}[/yellow]")
+        except requests.exceptions.ProxyError as e:
+            console.print(f"   [yellow]⚠️  Proxy error pada attempt {retry_count + 1}: {e}[/yellow]")
+        except Exception as e:
+            console.print(f"   [yellow]⚠️  Unexpected error pada attempt {retry_count + 1}: {e}[/yellow]")
+        
+        retry_count += 1
+        if retry_count < max_retries:
+            console.print(f"   [dim]Menunggu 5 detik sebelum retry...[/dim]")
+            time.sleep(5)
     
     if not extracted_reward_id:
-        console.print("\n--> ❌ [bold red]Peringatan: Streaming selesai tetapi tidak ada Reward ID yang ditemukan.[/bold red]")
+        console.print("\n--> ❌ [bold red]Peringatan: Streaming selesai tetapi tidak ada Reward ID yang ditemukan setelah {max_retries} attempts.[/bold red]")
+        console.print("--> [yellow]Kemungkinan penyebab:[/yellow]")
+        console.print("   • Koneksi internet VPS lambat")
+        console.print("   • Firewall atau proxy blocking")
+        console.print("   • Rate limiting dari server")
+        console.print("   • Session expired atau invalid")
+        console.print("   • Server Yupp.ai sedang maintenance")
         return
     
     console.print("[bold]4.[/bold]   ✍️  [cyan]Mengirim Log Event Umpan Balik...[/cyan]")
