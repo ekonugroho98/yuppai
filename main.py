@@ -218,6 +218,7 @@ def get_proxy_mode():
     """Mendapatkan mode proxy dari user"""
     menu_text = Text("\n1. Tidak menggunakan proxy\n2. Gunakan 1 proxy untuk semua account\n3. Gunakan proxy individual per account (dari cookies.txt)\n4. Masukkan proxy manual untuk semua account\n", justify="left")
     menu_panel = Panel(menu_text, title="[bold cyan]PILIH MODE PROXY[/bold cyan]", border_style="magenta", padding=(1, 2))
+    console.print(menu_panel)
     choice = Prompt.ask("[bold]Masukkan pilihan Anda[/bold]", choices=['1', '2', '3', '4'], default='1')
     return choice
 
