@@ -354,6 +354,19 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     session = requests.Session()
     session.headers.update(base_headers)
     
+    # Tambahkan headers yang lebih lengkap
+    session.headers.update({
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Cache-Control': 'max-age=0',
+    })
+    
     # --- PENAMBAHAN: Gunakan cookies yang diberikan ---
     if cookies:
         session.cookies.update(cookies)
@@ -378,8 +391,12 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     console.print("\n[bold]1-3.[/bold] ⚙️  [cyan]Menjalankan Inisiasi & Mengirim Pesan...[/cyan]")
     
     try:
-        session.post('https://yupp.ai/api/authentication/session', json={"userId": user_id})
-        session.post('https://yupp.ai/api/trpc/logging.logEvent?batch=1', json={"0":{"json":{"event":"start_chat","params":{"Chat_ID":chat_id,"Turn_ID":turn_id}}}})
+        # Tambahkan delay 30-60 detik sebelum request di VPS
+        delay = random.randint(30, 60)
+        console.print(f"   [dim]Waiting {delay} seconds before request...[/dim]")
+        time.sleep(delay)
+        
+        warm_up_session(session, user_id)
     except requests.exceptions.ProxyError:
         console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung melalui proxy yang diberikan.[/bold red]")
         return
@@ -439,9 +456,6 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
                 
             elif response_stream.status_code == 200:
                 console.print("   [green]📡 Koneksi streaming berhasil. Mendengarkan respons...[/green]")
-                
-                # --- PENAMBAHAN: Timeout untuk membaca stream ---
-                response_stream.raw.sock.settimeout(30)  # 30 detik timeout untuk membaca
                 
                 line_count = 0
                 for line in response_stream.iter_lines():
@@ -554,6 +568,24 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
         # Log untuk analisis
         with open('rate_limit_log.txt', 'a') as f:
             f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - 429 - IP: {session.get('https://httpbin.org/ip').json()['origin']}\n")
+
+    console.print("   [yellow]Waiting 60 seconds to avoid rate limit...[/yellow]")
+    time.sleep(60)
+
+def warm_up_session(session, user_id):
+    """Warm up session sebelum request utama"""
+    try:
+        # Simulasi browsing natural
+        session.get('https://yupp.ai', timeout=10)
+        time.sleep(2)
+        
+        session.post('https://yupp.ai/api/authentication/session', 
+                    json={"userId": user_id}, timeout=10)
+        time.sleep(2)
+        
+        console.print("   [dim]Session warmed up[/dim]")
+    except Exception as e:
+        console.print(f"   [yellow]Warm-up failed: {e}[/yellow]")
 
 # --- BAGIAN UTAMA UNTUK EKSEKUSI ---
 if __name__ == "__main__":
@@ -688,3 +720,6 @@ user_agents = [
 ]
 
 session.headers['User-Agent'] = random.choice(user_agents)
+
+# Tambahkan di berbagai tempat dalam kode
+time.sleep(random.uniform(1, 3))  # Random delay 1-3 detik
