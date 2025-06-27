@@ -507,6 +507,14 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     else:
         console.print(f"--> ❌ [bold red]PROSES KLAIM GAGAL! Status HTTP:[/bold red] {response5.status_code}")
 
+    if response5.status_code == 429:
+        print("   [red]RATE LIMITED DETECTED![/red]")
+        print(f"   [dim]IP: {session.get('https://httpbin.org/ip').json()['origin']}[/dim]")
+        print(f"   [dim]Proxy: {session.proxies}[/dim]")
+        
+        # Log untuk analisis
+        with open('rate_limit_log.txt', 'a') as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - 429 - IP: {session.get('https://httpbin.org/ip').json()['origin']}\n")
 
 # --- BAGIAN UTAMA UNTUK EKSEKUSI ---
 if __name__ == "__main__":
@@ -633,3 +641,11 @@ if __name__ == "__main__":
                     progress.update(task, advance=1)
 
     console.print(Panel("🎉 [bold green]Semua proses looping telah selesai.[/bold green] ", style="green"))
+
+user_agents = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+]
+
+session.headers['User-Agent'] = random.choice(user_agents)
