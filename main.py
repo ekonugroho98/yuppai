@@ -330,7 +330,7 @@ def generate_message_with_gemini(api_key):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         # Mempertahankan prompt baru Anda
-        prompt = "Make 1 question with 500 words on the theme of crypto."
+        prompt = "Make 1 question with minimal 500 characters on the theme of crypto."
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
