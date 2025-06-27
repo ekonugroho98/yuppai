@@ -388,6 +388,20 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     
     console.print(Panel(f"[bold]Chat ID:[/] [green]{chat_id}[/]\n[bold]Turn ID:[/] [green]{turn_id}[/]\n[bold]Account:[/] [blue]#{account_id}[/blue]\n[bold]User ID:[/] [cyan]{user_id[:8]}...[/cyan]", title="Sesi Baru Dimulai", style="green"))
 
+    # --- PENAMBAHAN: Log IP detail untuk debugging ---
+    try:
+        ip_response = session.get('https://httpbin.org/ip', timeout=10)
+        current_ip = ip_response.json().get('origin', 'unknown')
+        console.print(f"🌐 [dim]Current IP: {current_ip}[/dim]")
+        console.print(f"🔧 [dim]Proxy: {session.proxies}[/dim]")
+        
+        # Log ke file untuk analisis
+        with open('ip_debug_log.txt', 'a', encoding='utf-8') as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - IP: {current_ip} - Proxy: {session.proxies} - Account: {account_id}\n")
+            
+    except Exception as e:
+        console.print(f"⚠️  [yellow]Error checking IP: {e}[/yellow]")
+
     console.print("\n[bold]1-3.[/bold] ⚙️  [cyan]Menjalankan Inisiasi & Mengirim Pesan...[/cyan]")
     
     try:
@@ -425,6 +439,10 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
             else:
                 time.sleep(3)  # Delay awal 3 detik
             
+            # --- PENAMBAHAN: Log request detail ---
+            console.print(f"   [dim]Sending request to: https://yupp.ai/chat/{chat_id}?stream=true[/dim]")
+            console.print(f"   [dim]Headers: {dict(chat_stream_headers)[:100]}...[/dim]")
+            
             # --- PENAMBAHAN: Timeout yang lebih panjang untuk VPS ---
             response_stream = session.post(
                 f'https://yupp.ai/chat/{chat_id}?stream=true', 
@@ -433,6 +451,10 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
                 stream=True,
                 timeout=(60, 120)  # Timeout lebih panjang
             )
+            
+            # --- PENAMBAHAN: Log response detail ---
+            console.print(f"   [dim]Response Status: {response_stream.status_code}[/dim]")
+            console.print(f"   [dim]Response Headers: {dict(response_stream.headers)[:100]}...[/dim]")
             
             # --- PENAMBAHAN: Handling khusus untuk HTTP 429 ---
             if response_stream.status_code == 429:
@@ -446,7 +468,7 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
                     
                     # Log ke file
                     with open('rate_limit_log.txt', 'a', encoding='utf-8') as f:
-                        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - 429 - IP: {current_ip} - Proxy: {session.proxies}\n")
+                        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - 429 - IP: {current_ip} - Proxy: {session.proxies} - Attempt: {retry_count + 1}\n")
                 except:
                     pass
                 
