@@ -83,7 +83,7 @@ def get_manual_proxy():
 
 # --- PENAMBAHAN: Multiple Accounts/Cookies Support ---
 def load_multiple_cookies_from_file(filename="cookies.txt"):
-    """Memuat multiple cookies dari file cookies.txt dengan dukungan proxy dan user_id per account"""
+    """Memuat multiple cookies dari file cookies.txt dengan dukungan proxy, user_id, dan device profile per account"""
     accounts_list = []
     
     if not os.path.exists(filename):
@@ -95,6 +95,8 @@ def load_multiple_cookies_from_file(filename="cookies.txt"):
             current_cookies = {}
             current_proxy = None
             current_user_id = "37cf0952-9403-4d29-bf7a-1d1c08368a4a"  # Default user_id
+            current_device_profile = None  # Default device profile
+            
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 
@@ -105,14 +107,20 @@ def load_multiple_cookies_from_file(filename="cookies.txt"):
                 # Jika baris dimulai dengan "---", itu adalah pemisah antar account
                 if line.startswith('---'):
                     if current_cookies:
+                        # Jika device profile tidak diatur, gunakan random
+                        if current_device_profile is None:
+                            current_device_profile = get_random_device_profile()
+                        
                         accounts_list.append({
                             'cookies': current_cookies.copy(),
                             'proxy': current_proxy,
-                            'user_id': current_user_id
+                            'user_id': current_user_id,
+                            'device_profile': current_device_profile
                         })
                         current_cookies = {}
                         current_proxy = None
                         current_user_id = "37cf0952-9403-4d29-bf7a-1d1c08368a4a"  # Reset ke default
+                        current_device_profile = None  # Reset device profile
                     continue
                 
                 # Parse proxy jika baris dimulai dengan "PROXY:"
@@ -138,6 +146,18 @@ def load_multiple_cookies_from_file(filename="cookies.txt"):
                         current_user_id = user_id_line
                     continue
                 
+                # Parse device profile jika baris dimulai dengan "DEVICE_PROFILE:"
+                if line.startswith('DEVICE_PROFILE:'):
+                    device_profile_name = line[15:].strip()
+                    if device_profile_name:
+                        profile = get_device_profile_by_name(device_profile_name)
+                        if profile:
+                            current_device_profile = profile
+                            console.print(f"   [dim]Device profile untuk account: {profile['name']}[/dim]")
+                        else:
+                            console.print(f"   [yellow]⚠️  Device profile '{device_profile_name}' tidak ditemukan. Menggunakan random.[/yellow]")
+                    continue
+                
                 # Parse cookie name=value
                 try:
                     if '=' in line:
@@ -150,10 +170,15 @@ def load_multiple_cookies_from_file(filename="cookies.txt"):
             
             # Tambahkan account terakhir jika ada
             if current_cookies:
+                # Jika device profile tidak diatur, gunakan random
+                if current_device_profile is None:
+                    current_device_profile = get_random_device_profile()
+                
                 accounts_list.append({
                     'cookies': current_cookies,
                     'proxy': current_proxy,
-                    'user_id': current_user_id
+                    'user_id': current_user_id,
+                    'device_profile': current_device_profile
                 })
         
         console.print(f"✅ [green]Berhasil memuat {len(accounts_list)} account dari {filename}[/green]")
@@ -193,35 +218,94 @@ def get_proxy_mode():
     """Mendapatkan mode proxy dari user"""
     menu_text = Text("\n1. Tidak menggunakan proxy\n2. Gunakan 1 proxy untuk semua account\n3. Gunakan proxy individual per account (dari cookies.txt)\n4. Masukkan proxy manual untuk semua account\n", justify="left")
     menu_panel = Panel(menu_text, title="[bold cyan]PILIH MODE PROXY[/bold cyan]", border_style="magenta", padding=(1, 2))
-    console.print(menu_panel)
     choice = Prompt.ask("[bold]Masukkan pilihan Anda[/bold]", choices=['1', '2', '3', '4'], default='1')
     return choice
 
 # --- PENAMBAHAN KEMBALI: Daftar Profil Device ---
 DEVICE_PROFILES = [
     {
+        "name": "Windows Chrome",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
         "sec-ch-ua": '"Google Chrome";v="125", "Not.A/Brand";v="24", "Chromium";v="125"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
     },
     {
+        "name": "macOS Chrome",
         "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
         "sec-ch-ua": '"Google Chrome";v="125", "Not.A/Brand";v="24", "Chromium";v="125"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"macOS"',
     },
     {
+        "name": "Android Chrome",
         "user-agent": "Mozilla/5.0 (Linux; Android 13; SM-S908B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
         "sec-ch-ua": '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
         "sec-ch-ua-mobile": "?1",
         "sec-ch-ua-platform": '"Android"',
     },
+    {
+        "name": "Windows Firefox",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
+        "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    },
+    {
+        "name": "macOS Safari",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
+        "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"macOS"',
+    },
+    {
+        "name": "iOS Safari",
+        "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+        "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "sec-ch-ua-mobile": "?1",
+        "sec-ch-ua-platform": '"iOS"',
+    },
+    {
+        "name": "Linux Firefox",
+        "user-agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0",
+        "sec-ch-ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Linux"',
+    },
+    {
+        "name": "Windows Edge",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+        "sec-ch-ua": '"Microsoft Edge";v="125", "Not.A/Brand";v="24", "Chromium";v="125"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    },
 ]
+
+def get_device_profile_by_name(profile_name):
+    """Mendapatkan device profile berdasarkan nama."""
+    for profile in DEVICE_PROFILES:
+        if profile["name"].lower() == profile_name.lower():
+            return profile
+    return None
 
 def get_random_device_profile():
     """Memilih satu profil device secara acak dari daftar."""
     return random.choice(DEVICE_PROFILES)
+
+def get_device_profile_choice():
+    """Mendapatkan pilihan device profile dari user."""
+    menu_text = Text("\n1. Random device profile per loop\n2. Assign device profile per account (dari cookies.txt)\n", justify="left")
+    menu_panel = Panel(menu_text, title="[bold cyan]PILIH MODE DEVICE PROFILE[/bold cyan]", border_style="magenta", padding=(1, 2))
+    console.print(menu_panel)
+    choice = Prompt.ask("[bold]Masukkan pilihan Anda[/bold]", choices=['1', '2'], default='1')
+    return choice
+
+def show_available_device_profiles():
+    """Menampilkan daftar device profile yang tersedia."""
+    console.print("\n[bold cyan]Device Profile yang Tersedia:[/bold cyan]")
+    for i, profile in enumerate(DEVICE_PROFILES, 1):
+        console.print(f"{i}. {profile['name']} - {profile['user-agent'][:50]}...")
+    console.print()
 
 # --- Fungsi-fungsi pembantu lainnya ---
 
@@ -455,10 +539,6 @@ if __name__ == "__main__":
     for i in range(loop_count):
         console.print(Panel(f"LOOP KE-{i + 1} DARI {loop_count}", style="bold blue", padding=1))
         
-        # --- PERUBAHAN: Memilih profil device acak di setiap loop ---
-        device_profile = get_random_device_profile()
-        console.print(f"🖥️  [dim]Menggunakan profil device:[/] [italic dim]{device_profile['user-agent'][:70]}...[/italic dim]")
-        
         message_for_this_loop = ""
         if choice == '1':
             message_for_this_loop = random.choice(pesan_list)
@@ -468,6 +548,10 @@ if __name__ == "__main__":
         # --- PENAMBAHAN: Rotasi account untuk setiap loop ---
         for account_idx, account_data in enumerate(accounts_list, 1):
             console.print(Panel(f"ACCOUNT #{account_idx} DARI {len(accounts_list)}", style="bold yellow", padding=1))
+            
+            # --- PERUBAHAN: Menggunakan device profile yang sudah diassign ke account ---
+            device_profile = account_data.get('device_profile', get_random_device_profile())
+            console.print(f"🖥️  [dim]Menggunakan profil device:[/] [italic dim]{device_profile['name']} - {device_profile['user-agent'][:50]}...[/italic dim]")
             
             # --- PERUBAHAN: Mengirim profil device, proxy, dan cookies ke fungsi ---
             run_single_bot_process(

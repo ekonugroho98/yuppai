@@ -1,32 +1,81 @@
-# Format cookies.txt untuk multiple accounts dengan proxy dan user_id individual
+# Format cookies.txt untuk multiple accounts dengan proxy, user_id, dan device profile individual
 # Setiap account dipisahkan dengan baris "---"
 # Format: name=value
 # Proxy per account: PROXY:http://host:port atau PROXY:host:port
 # User ID per account: USER_ID:your_user_id_here
+# Device Profile per account: DEVICE_PROFILE:profile_name
 
-# ACCOUNT 1
+# ACCOUNT 1 - Windows Chrome
 PROXY:http://proxy1.example.com:8080
 USER_ID:37cf0952-9403-4d29-bf7a-1d1c08368a4a
+DEVICE_PROFILE:Windows Chrome
 __Secure-yupp.session-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbiI6IjN6ZW01ZmV4YWRhenZ5bXp4cDNkcmxlNGZncTVya3FiIiwib25ib2FyZGluZ1N0YXR1cyI6IlVJX1NUQVRFX0NPTVBMRVRFRCIsInJvbGUiOiJ1c2VyIiwidmVyc2lvbiI6MX0.bJIm3WL1u3k6a2ssmBAwdd_KtsRmOmUUbB6fsomDmoA
 AMP_MKTG_78c6b96db9=JTdCJTdE
 AMP_78c6b96db9=JTdCJTIyZGV2aWNlSWQlMjIlM0ElMjI5NWM3YmMyNy0wYjA3LTQ4NzAtYWFmZi1lZDhiM2U1NGYxOTclMjIlMkMlMjJ1c2VySWQlMjIlM0ElMjIzN2NmMDk1Mi05NDAzLTRkMjktYmY3YS0xZDFjMDgzNjhhNGElMjIlMkMlMjJzZXNzaW9uSWQlMjIlM0ExNzUwOTg5MzQ5MzU3JTJDJTIyb3B0T3V0JTIyJTNBZmFsc2UlMkMlMjJsYXN0RXZlbnRUaW1lJTIyJTNBMTc1MDk4OTM5MzQ1MSUyQyUyMmxhc3RFdmVudElkJTIyJTNBMjA1JTJDJTIycGFnZUNvdW50ZXIlMjIlM0EyJTdE
 
 ---
-# ACCOUNT 2 (contoh - ganti dengan cookie account kedua Anda)
+# ACCOUNT 2 - macOS Safari
 PROXY:socks5://proxy2.example.com:1080
 USER_ID:039a1999-b8a6-42b7-8d86-85322912fb28
+DEVICE_PROFILE:macOS Safari
 __Secure-yupp.session-token=YOUR_SECOND_ACCOUNT_SESSION_TOKEN_HERE
 AMP_MKTG_78c6b96db9=YOUR_SECOND_ACCOUNT_AMP_MKTG_HERE
 AMP_78c6b96db9=YOUR_SECOND_ACCOUNT_AMP_HERE
 
 ---
-# ACCOUNT 3 (contoh - ganti dengan cookie account ketiga Anda)
+# ACCOUNT 3 - Android Chrome
 # Tidak menggunakan proxy (kosongkan baris PROXY:)
 PROXY:
 USER_ID:5a7b8c9d-1e2f-3g4h-5i6j-7k8l9m0n1o2p
+DEVICE_PROFILE:Android Chrome
 __Secure-yupp.session-token=YOUR_THIRD_ACCOUNT_SESSION_TOKEN_HERE
 AMP_MKTG_78c6b96db9=YOUR_THIRD_ACCOUNT_AMP_MKTG_HERE
 AMP_78c6b96db9=YOUR_THIRD_ACCOUNT_AMP_HERE
+
+---
+# ACCOUNT 4 - Windows Firefox
+PROXY:http://proxy4.example.com:3128
+USER_ID:9f8e7d6c-5b4a-3c2d-1e0f-9a8b7c6d5e4f
+DEVICE_PROFILE:Windows Firefox
+__Secure-yupp.session-token=YOUR_FOURTH_ACCOUNT_SESSION_TOKEN_HERE
+AMP_MKTG_78c6b96db9=YOUR_FOURTH_ACCOUNT_AMP_MKTG_HERE
+AMP_78c6b96db9=YOUR_FOURTH_ACCOUNT_AMP_HERE
+
+---
+# ACCOUNT 5 - iOS Safari
+PROXY:http://proxy5.example.com:8080
+USER_ID:1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+DEVICE_PROFILE:iOS Safari
+__Secure-yupp.session-token=YOUR_FIFTH_ACCOUNT_SESSION_TOKEN_HERE
+AMP_MKTG_78c6b96db9=YOUR_FIFTH_ACCOUNT_AMP_MKTG_HERE
+AMP_78c6b96db9=YOUR_FIFTH_ACCOUNT_AMP_HERE
+
+---
+# ACCOUNT 6 - Linux Firefox
+PROXY:socks5://proxy6.example.com:1080
+USER_ID:7q8w9e0r-1t2y-3u4i-5o6p-7a8s9d0f1g2h
+DEVICE_PROFILE:Linux Firefox
+__Secure-yupp.session-token=YOUR_SIXTH_ACCOUNT_SESSION_TOKEN_HERE
+AMP_MKTG_78c6b96db9=YOUR_SIXTH_ACCOUNT_AMP_MKTG_HERE
+AMP_78c6b96db9=YOUR_SIXTH_ACCOUNT_AMP_HERE
+
+---
+# ACCOUNT 7 - Windows Edge
+PROXY:http://proxy7.example.com:3128
+USER_ID:3j4k5l6m-7n8o-9p0q-1r2s-3t4u5v6w7x8y
+DEVICE_PROFILE:Windows Edge
+__Secure-yupp.session-token=YOUR_SEVENTH_ACCOUNT_SESSION_TOKEN_HERE
+AMP_MKTG_78c6b96db9=YOUR_SEVENTH_ACCOUNT_AMP_MKTG_HERE
+AMP_78c6b96db9=YOUR_SEVENTH_ACCOUNT_AMP_HERE
+
+---
+# ACCOUNT 8 - macOS Chrome
+PROXY:http://proxy8.example.com:8080
+USER_ID:9z0x1c2v-3b4n-5m6l-7k8j-9h0g1f2d3s4a
+DEVICE_PROFILE:macOS Chrome
+__Secure-yupp.session-token=YOUR_EIGHTH_ACCOUNT_SESSION_TOKEN_HERE
+AMP_MKTG_78c6b96db9=YOUR_EIGHTH_ACCOUNT_AMP_MKTG_HERE
+AMP_78c6b96db9=YOUR_EIGHTH_ACCOUNT_AMP_HERE
 
 # Catatan:
 # - Setiap account harus memiliki semua cookie yang diperlukan
@@ -35,6 +84,19 @@ AMP_78c6b96db9=YOUR_THIRD_ACCOUNT_AMP_HERE
 # - Format cookie: name=value
 # - Format proxy: PROXY:http://host:port atau PROXY:host:port
 # - Format user_id: USER_ID:your_user_id_here
+# - Format device_profile: DEVICE_PROFILE:profile_name
+# 
+# Device Profile yang tersedia:
+# 1. Windows Chrome
+# 2. macOS Chrome  
+# 3. Android Chrome
+# 4. Windows Firefox
+# 5. macOS Safari
+# 6. iOS Safari
+# 7. Linux Firefox
+# 8. Windows Edge
+#
 # - Jika tidak ingin menggunakan proxy untuk account tertentu, kosongkan: PROXY:
 # - Jika tidak ingin mengatur user_id, kosongkan: USER_ID: (akan menggunakan default)
+# - Jika tidak ingin mengatur device_profile, kosongkan: DEVICE_PROFILE: (akan menggunakan random)
 # - Pastikan tidak ada spasi ekstra di awal atau akhir baris 

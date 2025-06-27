@@ -51,10 +51,11 @@ Yupp.ai Auto-Bot is a sophisticated automation tool designed to interact with th
 - Authentication support (username:password@host:port)
 
 ### 📱 Device Spoofing
-- Random device profile selection for each loop
-- Realistic user-agent strings
-- Mimics different browsers and operating systems
-- Reduces detection risk
+- **8 Device Profiles**: Windows Chrome, macOS Chrome, Android Chrome, Windows Firefox, macOS Safari, iOS Safari, Linux Firefox, Windows Edge
+- **Per-Account Assignment**: Assign specific device profiles to each account
+- **Random Fallback**: Uses random device profile if none specified
+- **Realistic Fingerprinting**: Mimics different browsers and operating systems
+- **Reduces Detection Risk**: Each account maintains consistent device identity
 
 ### 🤖 AI Integration
 - **Gemini AI**: Generate dynamic messages using Google's Gemini API
@@ -126,21 +127,33 @@ AMP_78c6b96db9=your_amp_value_here
 
 **For Multiple Accounts (`cookies.txt`):**
 ```txt
-# ACCOUNT 1
+# ACCOUNT 1 - Windows Chrome
 PROXY:http://proxy1.example.com:8080
 USER_ID:37cf0952-9403-4d29-bf7a-1d1c08368a4a
+DEVICE_PROFILE:Windows Chrome
 __Secure-yupp.session-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 AMP_MKTG_78c6b96db9=JTdCJTdE
 AMP_78c6b96db9=JTdCJTIyZGV2aWNlSWQlMjIlM0ElMjI5NWM3YmMyNy0wYjA3LTQ4NzAtYWFmZi1lZDhiM2U1NGYxOTclMjIlMkMlMjJ1c2VySWQlMjIlM0ElMjIzN2NmMDk1Mi05NDAzLTRkMjktYmY3YS0xZDFjMDgzNjhhNGElMjIlMkMlMjJzZXNzaW9uSWQlMjIlM0ExNzUwOTg5MzQ5MzU3JTJDJTIyb3B0T3V0JTIyJTNBZmFsc2UlMkMlMjJsYXN0RXZlbnRUaW1lJTIyJTNBMTc1MDk4OTM5MzQ1MSUyQyUyMmxhc3RFdmVudElkJTIyJTNBMjA1JTJDJTIycGFnZUNvdW50ZXIlMjIlM0EyJTdE
 
 ---
-# ACCOUNT 2
+# ACCOUNT 2 - macOS Safari
 PROXY:socks5://proxy2.example.com:1080
 USER_ID:039a1999-b8a6-42b7-8d86-85322912fb28
+DEVICE_PROFILE:macOS Safari
 __Secure-yupp.session-token=your_second_account_token_here
 AMP_MKTG_78c6b96db9=your_second_amp_mktg_here
 AMP_78c6b96db9=your_second_amp_here
 ```
+
+**Available Device Profiles:**
+1. **Windows Chrome** - Windows 10/11 with Chrome browser
+2. **macOS Chrome** - macOS with Chrome browser  
+3. **Android Chrome** - Android mobile with Chrome browser
+4. **Windows Firefox** - Windows with Firefox browser
+5. **macOS Safari** - macOS with Safari browser
+6. **iOS Safari** - iPhone/iPad with Safari browser
+7. **Linux Firefox** - Linux with Firefox browser
+8. **Windows Edge** - Windows with Microsoft Edge browser
 
 #### 2. Proxy Configuration (`proxy.txt`)
 ```txt
