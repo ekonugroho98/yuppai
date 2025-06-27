@@ -403,16 +403,20 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     
     if response_stream.status_code == 200:
         console.print("   [green]📡 Koneksi streaming berhasil. Mendengarkan respons...[/green]")
-        for line in response_stream.iter_lines():
-            if line and line.decode('utf-8').startswith('a:'):
-                json_string = line.decode('utf-8')[2:]
-                try:
-                    data = json.loads(json_string)
-                    if 'unclaimedRewardInfo' in data and data['unclaimedRewardInfo'] and 'rewardId' in data['unclaimedRewardInfo']:
-                        extracted_reward_id = data['unclaimedRewardInfo']['rewardId']
-                        console.print(f"   [bold green]✅ Reward ID DITEMUKAN:[/bold green] [yellow]{extracted_reward_id}[/yellow]")
-                        break 
-                except json.JSONDecodeError: pass
+        try:
+            for line in response_stream.iter_lines():
+                if line and line.decode('utf-8').startswith('a:'):
+                    json_string = line.decode('utf-8')[2:]
+                    try:
+                        data = json.loads(json_string)
+                        if 'unclaimedRewardInfo' in data and data['unclaimedRewardInfo'] and 'rewardId' in data['unclaimedRewardInfo']:
+                            extracted_reward_id = data['unclaimedRewardInfo']['rewardId']
+                            console.print(f"   [bold green]✅ Reward ID DITEMUKAN:[/bold green] [yellow]{extracted_reward_id}[/yellow]")
+                            break 
+                    except json.JSONDecodeError: pass
+        except requests.exceptions.ChunkedEncodingError as e:
+            console.print(f"[bold red]❌ Streaming error: {e}[/bold red]")
+            return
     
     if not extracted_reward_id:
         console.print("\n--> ❌ [bold red]Peringatan: Streaming selesai tetapi tidak ada Reward ID yang ditemukan.[/bold red]")
