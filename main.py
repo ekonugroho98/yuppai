@@ -401,12 +401,13 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
             console.print(f"   [dim]Mencoba koneksi streaming (attempt {retry_count + 1}/{max_retries})...[/dim]")
             
             # --- PENAMBAHAN: Timeout yang lebih panjang untuk VPS ---
+            time.sleep(3)  # Delay 3 detik
             response_stream = session.post(
                 f'https://yupp.ai/chat/{chat_id}?stream=true', 
                 headers=chat_stream_headers, 
                 data=chat_stream_data.encode('utf-8'), 
                 stream=True,
-                timeout=(30, 60)  # (connect_timeout, read_timeout)
+                timeout=(60, 120)  # Timeout lebih panjang
             )
             
             if response_stream.status_code == 200:
