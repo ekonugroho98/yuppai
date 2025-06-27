@@ -392,7 +392,7 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     data_list = [chat_id, turn_id, message_to_send, "$undefined", "$undefined", [], "$undefined", [], "none", False]
     chat_stream_data = json.dumps(data_list)
     
-    # --- PENAMBAHAN: Timeout dan retry untuk VPS ---
+    # --- PENAMBAHAN: Timeout dan retry untuk VPS dengan handling 429 ---
     max_retries = 3
     retry_count = 0
     
@@ -400,8 +400,15 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
         try:
             console.print(f"   [dim]Mencoba koneksi streaming (attempt {retry_count + 1}/{max_retries})...[/dim]")
             
+            # --- PENAMBAHAN: Delay yang lebih panjang untuk menghindari rate limit ---
+            if retry_count > 0:
+                delay = min(2 ** retry_count * 60, 300)  # 60s, 120s, 240s, max 300s
+                console.print(f"   [yellow]Rate limited detected. Waiting {delay} seconds...[/yellow]")
+                time.sleep(delay)
+            else:
+                time.sleep(3)  # Delay awal 3 detik
+            
             # --- PENAMBAHAN: Timeout yang lebih panjang untuk VPS ---
-            time.sleep(3)  # Delay 3 detik
             response_stream = session.post(
                 f'https://yupp.ai/chat/{chat_id}?stream=true', 
                 headers=chat_stream_headers, 
@@ -410,7 +417,27 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
                 timeout=(60, 120)  # Timeout lebih panjang
             )
             
-            if response_stream.status_code == 200:
+            # --- PENAMBAHAN: Handling khusus untuk HTTP 429 ---
+            if response_stream.status_code == 429:
+                console.print(f"   [red]❌ HTTP Status: 429 - RATE LIMITED![/red]")
+                
+                # Log rate limit untuk analisis
+                try:
+                    current_ip = session.get('https://httpbin.org/ip', timeout=10).json().get('origin', 'unknown')
+                    console.print(f"   [dim]Current IP: {current_ip}[/dim]")
+                    console.print(f"   [dim]Proxy: {session.proxies}[/dim]")
+                    
+                    # Log ke file
+                    with open('rate_limit_log.txt', 'a', encoding='utf-8') as f:
+                        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - 429 - IP: {current_ip} - Proxy: {session.proxies}\n")
+                except:
+                    pass
+                
+                # Lanjut ke retry berikutnya dengan exponential backoff
+                retry_count += 1
+                continue
+                
+            elif response_stream.status_code == 200:
                 console.print("   [green]📡 Koneksi streaming berhasil. Mendengarkan respons...[/green]")
                 
                 # --- PENAMBAHAN: Timeout untuk membaca stream ---
@@ -465,11 +492,16 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     if not extracted_reward_id:
         console.print("\n--> ❌ [bold red]Peringatan: Streaming selesai tetapi tidak ada Reward ID yang ditemukan setelah {max_retries} attempts.[/bold red]")
         console.print("--> [yellow]Kemungkinan penyebab:[/yellow]")
+        console.print("   • IP VPS/proxy terkena rate limiting (429)")
         console.print("   • Koneksi internet VPS lambat")
         console.print("   • Firewall atau proxy blocking")
-        console.print("   • Rate limiting dari server")
         console.print("   • Session expired atau invalid")
         console.print("   • Server Yupp.ai sedang maintenance")
+        console.print("\n--> [bold cyan]Solusi yang disarankan:[/bold cyan]")
+        console.print("   • Ganti VPS region/provider")
+        console.print("   • Ganti proxy dengan yang fresh")
+        console.print("   • Update cookies dengan yang baru")
+        console.print("   • Tunggu 1-2 jam sebelum mencoba lagi")
         return
     
     console.print("[bold]4.[/bold]   ✍️  [cyan]Mengirim Log Event Umpan Balik...[/cyan]")
@@ -489,6 +521,13 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
         return
     except requests.exceptions.RequestException as e:
         console.print(f"   [bold red]❌ Error koneksi klaim: {e}[/bold red]")
+        return
+    
+    # --- PENAMBAHAN: Handling untuk HTTP 429 pada claim ---
+    if response5.status_code == 429:
+        console.print("   [bold red]❌ RATE LIMITED saat mengklaim reward![/bold red]")
+        console.print("   [yellow]⚠️  Reward ID sudah ditemukan tapi tidak bisa diklaim karena rate limit.[/yellow]")
+        console.print("   [dim]Solusi: Tunggu beberapa menit dan coba lagi manual.[/dim]")
         return
     
     if response5.status_code == 200:
