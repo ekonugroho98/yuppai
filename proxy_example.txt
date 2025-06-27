@@ -1,0 +1,22 @@
+# Contoh format proxy yang didukung:
+# 
+# 1. HTTP Proxy dengan autentikasi:
+# http://username:password@host:port
+# 
+# 2. HTTP Proxy tanpa autentikasi:
+# http://host:port
+# 
+# 3. SOCKS5 Proxy dengan autentikasi:
+# socks5://username:password@host:port
+# 
+# 4. SOCKS5 Proxy tanpa autentikasi:
+# socks5://host:port
+# 
+# 5. Format sederhana (otomatis ditambahkan http://):
+# host:port
+# 
+# Contoh penggunaan:
+# 192.168.1.100:8080
+# http://proxy.example.com:3128
+# http://user:pass@proxy.example.com:8080
+# socks5://127.0.0.1:1080 

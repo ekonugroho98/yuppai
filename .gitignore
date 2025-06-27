@@ -1,0 +1,6 @@
+# Virtual Environment
+venv/
+apikey.txt
+cookies.txt
+proxy.txt
+
