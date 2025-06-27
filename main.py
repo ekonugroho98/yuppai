@@ -423,6 +423,25 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     data_list = [chat_id, turn_id, message_to_send, "$undefined", "$undefined", [], "$undefined", [], "none", False]
     chat_stream_data = json.dumps(data_list)
     
+    # --- CETAK CURL EQUIVALENT UNTUK DEBUGGING ---
+    curl_headers = ' '.join([f"-H '{k}: {v}'" for k, v in chat_stream_headers.items()])
+    curl_data = f"--data-raw '{chat_stream_data}'"
+    curl_url = f"'https://yupp.ai/chat/{chat_id}?stream=true'"
+
+    # Handle cookies
+    curl_cookies = ""
+    if cookies:
+        cookie_str = '; '.join([f"{k}={v}" for k, v in cookies.items()])
+        curl_cookies = f"-b '{cookie_str}'"
+
+    # Handle proxy
+    curl_proxy = ""
+    if proxy_config and proxy_config.get('http'):
+        curl_proxy = f"-x '{proxy_config['http']}'"
+
+    curl_cmd = f"curl -X POST {curl_headers} {curl_cookies} {curl_proxy} {curl_data} {curl_url} --compressed"
+    console.print(f"[bold cyan]CURL command for debug:[/bold cyan]\n[dim]{curl_cmd}[/dim]")
+    
     # --- PENAMBAHAN: Timeout dan retry untuk VPS dengan handling 429 ---
     max_retries = 3
     retry_count = 0
