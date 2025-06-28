@@ -1,3 +1,4 @@
 google-generativeai
 requests
 rich
+deepseek

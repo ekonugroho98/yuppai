@@ -59,6 +59,7 @@ Yupp.ai Auto-Bot is a sophisticated automation tool designed to interact with th
 
 ### 🤖 AI Integration
 - **Gemini AI**: Generate dynamic messages using Google's Gemini API
+- **DeepSeek AI**: Generate dynamic messages using DeepSeek AI API
 - **Predefined Messages**: Use static messages from `pesan.txt`
 - Automatic message rotation and randomization
 
@@ -76,6 +77,7 @@ Before using this bot, ensure you have:
 - **Active Yupp.ai account(s)**
 - **Valid session cookies** from your Yupp.ai account
 - **Google Gemini API key** (optional, for AI message generation)
+- **DeepSeek API key** (optional, for AI message generation)
 - **Proxy servers** (optional, for IP rotation)
 
 ## 🚀 Installation
@@ -170,7 +172,12 @@ host:port
 your_google_gemini_api_key_here
 ```
 
-#### 4. Predefined Messages (`pesan.txt`)
+#### 4. DeepSeek API Key (`deepseek_apikey.txt`)
+```txt
+your_deepseek_api_key_here
+```
+
+#### 5. Predefined Messages (`pesan.txt`)
 ```txt
 What is cryptocurrency, and how does it differ from traditional fiat currencies?
 How does blockchain technology work, and why is it considered secure?
@@ -194,6 +201,14 @@ What are the main differences between proof-of-work and proof-of-stake?
 2. **Create a new API key**
 3. **Copy the key** to `apikey.txt`
 
+### How to Get DeepSeek API Key
+
+1. **Visit** [DeepSeek Platform](https://platform.deepseek.com/)
+2. **Sign up/Login** to your account
+3. **Navigate to API Keys** section
+4. **Create a new API key**
+5. **Copy the key** to `deepseek_apikey.txt`
+
 ## 🎮 Usage
 
 ### Basic Usage
@@ -216,6 +231,7 @@ When you run the bot, it will guide you through an interactive setup:
 3. **Message Source**
    - Use predefined messages from `pesan.txt`
    - Use AI-generated messages with Gemini
+   - Use AI-generated messages with DeepSeek
 
 4. **Loop Configuration**
    - Set number of execution loops
@@ -252,6 +268,7 @@ Masukkan pilihan Anda [1]: 2
 │                       │
 │ 1. Gunakan pesan dari pesan.txt
 │ 2. Gunakan Gemini AI untuk generate pesan
+│ 3. Gunakan DeepSeek AI untuk generate pesan
 │                       │
 └───────────────────────┘
 
@@ -288,6 +305,7 @@ yuppai-bot/
 ├── proxy.txt              # Global proxy configuration
 ├── proxy_example.txt      # Example proxy format
 ├── apikey.txt             # Google Gemini API key
+├── deepseek_apikey.txt    # DeepSeek API key
 ├── pesan.txt              # Predefined messages
 ├── venv/                  # Virtual environment
 └── .gitignore            # Git ignore file
@@ -345,11 +363,32 @@ curl -x your_proxy:port https://httpbin.org/ip
 
 #### 4. "API key invalid" Errors
 ```bash
-# Verify Gemini API key is correct and active
-# Check API quota and billing status
+# Test Gemini API
+python -c "import google.generativeai as genai; genai.configure(api_key='your_key'); print('Gemini OK')"
+
+# Test DeepSeek API
+python test_deepseek.py
 ```
 
-#### 5. "Session expired" Errors
+#### 5. "DeepSeek library tidak tersedia" Errors
+```bash
+# Install DeepSeek library
+pip install deepseek
+
+# Verify installation
+python -c "from deepseek import DeepSeekAPI; print('DeepSeek OK')"
+```
+
+#### 6. "DeepSeek API response error" Errors
+```bash
+# Check API key format
+cat deepseek_apikey.txt
+
+# Test with simple script
+python test_deepseek.py
+```
+
+#### 7. "Session expired" Errors
 ```bash
 # Refresh cookies from browser
 # Ensure cookies are recent and valid

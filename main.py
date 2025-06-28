@@ -13,6 +13,14 @@ from rich.text import Text
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
 from rich.syntax import Syntax
 
+# --- PENAMBAHAN: Import DeepSeek ---
+try:
+    from deepseek import DeepSeekAPI
+except ImportError:
+    console = Console()
+    console.print("--> ⚠️  [yellow]DeepSeek library tidak ditemukan. Install dengan: pip install deepseek[/yellow]")
+    DeepSeekAPI = None
+
 console = Console()
 
 # --- PENAMBAHAN: Konfigurasi Proxy ---
@@ -311,15 +319,30 @@ def show_available_device_profiles():
 # --- Fungsi-fungsi pembantu lainnya ---
 
 def get_user_choice():
-    menu_text = Text("\n1. Acak pesan per baris dari `pesan.txt`\n2. Hasilkan pesan baru dengan Gemini AI\n", justify="left")
+    menu_text = Text("\n1. Acak pesan per baris dari `pesan.txt`\n2. Hasilkan pesan baru dengan Gemini AI\n3. Hasilkan pesan baru dengan DeepSeek\n", justify="left")
     menu_panel = Panel(menu_text, title="[bold cyan]PILIH SUMBER PESAN[/bold cyan]", border_style="magenta", padding=(1, 2))
     console.print(menu_panel)
-    choice = Prompt.ask("[bold]Masukkan pilihan Anda[/bold]", choices=['1', '2'], default='2')
+    choice = Prompt.ask("[bold]Masukkan pilihan Anda[/bold]", choices=['1', '2', '3'], default='2')
     return choice
 
 def load_api_key(filename="apikey.txt"):
     if not os.path.exists(filename): return None
     with open(filename, 'r', encoding='utf-8') as f: return f.read().strip()
+
+def load_deepseek_api_key(filename="deepseek_apikey.txt"):
+    """Memuat API key DeepSeek dari file deepseek_apikey.txt"""
+    if not os.path.exists(filename): return None
+    with open(filename, 'r', encoding='utf-8') as f: return f.read().strip()
+
+def generate_message_with_ai(api_key, ai_provider="gemini"):
+    """Menghasilkan pesan menggunakan AI provider yang dipilih"""
+    if ai_provider == "gemini":
+        return generate_message_with_gemini(api_key)
+    elif ai_provider == "deepseek":
+        return generate_message_with_deepseek(api_key)
+    else:
+        console.print(f"--> ❌ [bold red]AI provider '{ai_provider}' tidak didukung.[/bold red]")
+        return "Make any question from the discussion on crypto."
 
 def generate_message_with_gemini(api_key):
     console.print("--> 🤖 Menghasilkan pesan baru dengan Gemini AI...", style="cyan")
@@ -330,14 +353,80 @@ def generate_message_with_gemini(api_key):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         # Mempertahankan prompt baru Anda
-        prompt = "Create 1 question with at least 500 quality characters to train the AI."
+        prompt = "Buatkan 1 prompt pertanyaan dengan minimal 50 huruf dan maksimal 300 huruf, bebas pilih topic baik poltik, crypto, dan lainnya tapi yg sulit di jawab."
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
-        console.print(f"--> ❌ [bold red]Error saat menghubungi Gemini AI:[/bold red] {e}")
-        console.print("--> Menggunakan pesan fallback.", style="yellow")
-        # Mempertahankan fallback baru Anda
+        error_message = str(e)
+        if "429" in error_message and "quota" in error_message.lower():
+            console.print("--> ⚠️  [yellow]Rate limit Gemini API terdeteksi. Menunggu 1 menit...[/yellow]")
+            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%")) as progress:
+                task = progress.add_task("[yellow]Menunggu rate limit...", total=60)
+                for _ in range(60):
+                    time.sleep(1)
+                    progress.update(task, advance=1)
+            console.print("--> 🔄 [green]Mencoba lagi setelah jeda...[/green]")
+            try:
+                response = model.generate_content(prompt)
+                return response.text.strip()
+            except Exception as retry_error:
+                console.print(f"--> ❌ [bold red]Error setelah retry:[/bold red] {retry_error}")
+                console.print("--> Menggunakan pesan fallback.", style="yellow")
+                return "Make any question from the discussion on crypto."
+        else:
+            console.print(f"--> ❌ [bold red]Error saat menghubungi Gemini AI:[/bold red] {e}")
+            console.print("--> Menggunakan pesan fallback.", style="yellow")
+            # Mempertahankan fallback baru Anda
+            return "Make any question from the discussion on crypto."
+
+def generate_message_with_deepseek(api_key):
+    """Menghasilkan pesan menggunakan DeepSeek AI"""
+    console.print("--> 🧠 Menghasilkan pesan baru dengan DeepSeek AI...", style="cyan")
+    if not api_key:
+        console.print("--> ⚠️  [yellow]Peringatan: `deepseek_apikey.txt` tidak ditemukan. Menggunakan pesan fallback.[/yellow]")
+        return "Tolong jelaskan apa itu black hole."
+    
+    if DeepSeekAPI is None:
+        console.print("--> ❌ [bold red]DeepSeek library tidak tersedia. Install dengan: pip install deepseek[/bold red]")
         return "Make any question from the discussion on crypto."
+    
+    try:
+        client = DeepSeekAPI(api_key=api_key)
+        prompt = "Buatkan 1 prompt pertanyaan dengan minimal 50 huruf dan maksimal 300 huruf, bebas pilih topic baik poltik, crypto, dan lainnya tapi yg sulit di jawab."
+        
+        response = client.chat_completion(
+            prompt=prompt,
+            model="deepseek-chat",
+            stream=False
+        )
+        
+        # DeepSeek API mengembalikan string langsung, bukan object dengan choices
+        return response.strip()
+    except Exception as e:
+        error_message = str(e)
+        if "429" in error_message and ("rate" in error_message.lower() or "quota" in error_message.lower()):
+            console.print("--> ⚠️  [yellow]Rate limit DeepSeek API terdeteksi. Menunggu 1 menit...[/yellow]")
+            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%")) as progress:
+                task = progress.add_task("[yellow]Menunggu rate limit...", total=60)
+                for _ in range(60):
+                    time.sleep(1)
+                    progress.update(task, advance=1)
+            console.print("--> 🔄 [green]Mencoba lagi setelah jeda...[/green]")
+            try:
+                response = client.chat_completion(
+                    prompt=prompt,
+                    model="deepseek-chat",
+                    stream=False
+                )
+                return response.strip()
+            except Exception as retry_error:
+                console.print(f"--> ❌ [bold red]Error setelah retry:[/bold red] {retry_error}")
+                console.print("--> Menggunakan pesan fallback.", style="yellow")
+                return "Make any question from the discussion on crypto."
+        else:
+            console.print(f"--> ❌ [bold red]Error saat menghubungi DeepSeek AI:[/bold red] {e}")
+            console.print("--> Menggunakan pesan fallback.", style="yellow")
+            return "Make any question from the discussion on crypto."
 
 # --- PERUBAHAN: Fungsi utama sekarang menerima profil device, proxy, cookies, dan user_id ---
 def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_config: dict = None, cookies: dict = None, account_id: int = 1, user_id: str = "37cf0952-9403-4d29-bf7a-1d1c08368a4a"):
@@ -519,6 +608,8 @@ if __name__ == "__main__":
     
     pesan_list = []
     api_key_gemini = ""
+    api_key_deepseek = ""
+    ai_provider = ""
 
     if choice == '1':
         try:
@@ -536,7 +627,15 @@ if __name__ == "__main__":
         if not api_key_gemini:
             console.print("--> ❌ [bold red]`apikey.txt` tidak ditemukan atau kosong! Menghentikan skrip.[/bold red]")
             sys.exit(1)
+        ai_provider = "gemini"
         console.print("\n✅ [green]Pilihan: Menggunakan Gemini AI untuk menghasilkan pesan di setiap loop.[/green]")
+    elif choice == '3':
+        api_key_deepseek = load_deepseek_api_key()
+        if not api_key_deepseek:
+            console.print("--> ❌ [bold red]`deepseek_apikey.txt` tidak ditemukan atau kosong! Menghentikan skrip.[/bold red]")
+            sys.exit(1)
+        ai_provider = "deepseek"
+        console.print("\n✅ [green]Pilihan: Menggunakan DeepSeek AI untuk menghasilkan pesan di setiap loop.[/green]")
 
     console.print("\n[bold]--- Pengaturan Selesai. Memulai Looping. ---[/bold]")
     time.sleep(2)
@@ -553,7 +652,9 @@ if __name__ == "__main__":
             if choice == '1':
                 message_for_this_account = random.choice(pesan_list)
             elif choice == '2':
-                message_for_this_account = generate_message_with_gemini(api_key_gemini)
+                message_for_this_account = generate_message_with_ai(api_key_gemini, "gemini")
+            elif choice == '3':
+                message_for_this_account = generate_message_with_ai(api_key_deepseek, "deepseek")
             
             # --- PERUBAHAN: Menggunakan device profile yang sudah diassign ke account ---
             device_profile = account_data.get('device_profile', get_random_device_profile())
