@@ -352,8 +352,36 @@ def generate_message_with_gemini(api_key):
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
-        # Mempertahankan prompt baru Anda
-        prompt = "Buatkan 1 prompt pertanyaan dengan minimal 50 huruf dan maksimal 300 huruf, bebas pilih topic baik poltik, crypto, dan lainnya tapi yg sulit di jawab."
+        
+        # Menambahkan randomization untuk menghindari cache
+        import random
+        import time
+        
+        # Random seed berdasarkan waktu
+        random.seed(time.time())
+        
+        # Topik yang bisa dipilih secara random
+        topics = ["politik", "crypto", "teknologi", "sains", "ekonomi", "sosial", "lingkungan", "pendidikan", "kesehatan", "keamanan"]
+        selected_topic = random.choice(topics)
+        
+        # Kata kunci random untuk variasi
+        keywords = ["dampak", "tantangan", "risiko", "solusi", "strategi", "perubahan", "inovasi", "krisis", "peluang", "ancaman"]
+        selected_keyword = random.choice(keywords)
+        
+        # Panjang random untuk variasi
+        min_length = random.randint(50, 80)
+        max_length = random.randint(250, 350)
+        
+        # Timestamp untuk menghindari cache
+        timestamp = int(time.time())
+        
+        prompt = f"""Buatkan 1 pertanyaan atau perintah dalam bahasa Indonesia dengan panjang {min_length}-{max_length} huruf. 
+Fokus pada topik: {selected_topic}. 
+Gunakan kata kunci: {selected_keyword}.
+Pertanyaan harus sulit dijawab dan memerlukan analisis mendalam.
+Berikan hasilnya langsung berupa pertanyaan/perintah saja, tanpa penjelasan tambahan.
+Timestamp: {timestamp}"""
+        
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -392,7 +420,35 @@ def generate_message_with_deepseek(api_key):
     
     try:
         client = DeepSeekAPI(api_key=api_key)
-        prompt = "Buatkan 1 prompt pertanyaan dengan minimal 50 huruf dan maksimal 300 huruf, bebas pilih topic baik poltik, crypto, dan lainnya tapi yg sulit di jawab."
+        
+        # Menambahkan randomization untuk menghindari cache
+        import random
+        import time
+        
+        # Random seed berdasarkan waktu
+        random.seed(time.time())
+        
+        # Topik yang bisa dipilih secara random
+        topics = ["politik", "crypto", "teknologi", "sains", "ekonomi", "sosial", "lingkungan", "pendidikan", "kesehatan", "keamanan"]
+        selected_topic = random.choice(topics)
+        
+        # Kata kunci random untuk variasi
+        keywords = ["dampak", "tantangan", "risiko", "solusi", "strategi", "perubahan", "inovasi", "krisis", "peluang", "ancaman"]
+        selected_keyword = random.choice(keywords)
+        
+        # Panjang random untuk variasi
+        min_length = random.randint(50, 80)
+        max_length = random.randint(250, 350)
+        
+        # Timestamp untuk menghindari cache
+        timestamp = int(time.time())
+        
+        prompt = f"""Buatkan 1 pertanyaan atau perintah dalam bahasa Indonesia dengan panjang {min_length}-{max_length} huruf. 
+Fokus pada topik: {selected_topic}. 
+Gunakan kata kunci: {selected_keyword}.
+Pertanyaan harus sulit dijawab dan memerlukan analisis mendalam.
+Berikan hasilnya langsung berupa pertanyaan/perintah saja, tanpa penjelasan tambahan.
+Timestamp: {timestamp}"""
         
         response = client.chat_completion(
             prompt=prompt,
@@ -413,8 +469,23 @@ def generate_message_with_deepseek(api_key):
                     progress.update(task, advance=1)
             console.print("--> 🔄 [green]Mencoba lagi setelah jeda...[/green]")
             try:
+                # Menambahkan randomization untuk retry juga
+                random.seed(time.time() + 1)  # Seed berbeda untuk retry
+                selected_topic = random.choice(topics)
+                selected_keyword = random.choice(keywords)
+                min_length = random.randint(50, 80)
+                max_length = random.randint(250, 350)
+                timestamp = int(time.time())
+                
+                retry_prompt = f"""Buatkan 1 pertanyaan atau perintah dalam bahasa Indonesia dengan panjang {min_length}-{max_length} huruf. 
+Fokus pada topik: {selected_topic}. 
+Gunakan kata kunci: {selected_keyword}.
+Pertanyaan harus sulit dijawab dan memerlukan analisis mendalam.
+Berikan hasilnya langsung berupa pertanyaan/perintah saja, tanpa penjelasan tambahan.
+Timestamp: {timestamp}"""
+                
                 response = client.chat_completion(
-                    prompt=prompt,
+                    prompt=retry_prompt,
                     model="deepseek-chat",
                     stream=False
                 )
