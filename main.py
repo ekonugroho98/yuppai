@@ -330,7 +330,7 @@ def generate_message_with_gemini(api_key):
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         # Mempertahankan prompt baru Anda
-        prompt = "Make 1 question with minimal 500 characters on the theme of crypto."
+        prompt = "Create 1 question with at least 500 quality characters to train the AI."
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -544,15 +544,16 @@ if __name__ == "__main__":
     for i in range(loop_count):
         console.print(Panel(f"LOOP KE-{i + 1} DARI {loop_count}", style="bold blue", padding=1))
         
-        message_for_this_loop = ""
-        if choice == '1':
-            message_for_this_loop = random.choice(pesan_list)
-        elif choice == '2':
-            message_for_this_loop = generate_message_with_gemini(api_key_gemini)
-        
         # --- PENAMBAHAN: Rotasi account untuk setiap loop ---
         for account_idx, account_data in enumerate(accounts_list, 1):
             console.print(Panel(f"ACCOUNT #{account_idx} DARI {len(accounts_list)}", style="bold yellow", padding=1))
+            
+            # --- PERUBAHAN: Generate message untuk setiap account ---
+            message_for_this_account = ""
+            if choice == '1':
+                message_for_this_account = random.choice(pesan_list)
+            elif choice == '2':
+                message_for_this_account = generate_message_with_gemini(api_key_gemini)
             
             # --- PERUBAHAN: Menggunakan device profile yang sudah diassign ke account ---
             device_profile = account_data.get('device_profile', get_random_device_profile())
@@ -560,7 +561,7 @@ if __name__ == "__main__":
             
             # --- PERUBAHAN: Mengirim profil device, proxy, dan cookies ke fungsi ---
             run_single_bot_process(
-                message_for_this_loop, 
+                message_for_this_account, 
                 device_profile, 
                 account_data['proxy'], 
                 account_data['cookies'], 
