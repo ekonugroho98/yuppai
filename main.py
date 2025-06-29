@@ -7,6 +7,7 @@ import time
 import google.generativeai as genai
 import random
 import threading
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.console import Console
 from rich.panel import Panel
@@ -601,31 +602,161 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     data_list = [chat_id, turn_id, message_to_send, "$undefined", "$undefined", [], "$undefined", [], "none", False]
     chat_stream_data = json.dumps(data_list)
     
-    try:
-        response_stream = session.post(f'https://yupp.ai/chat/{chat_id}?stream=true', headers=chat_stream_headers, data=chat_stream_data.encode('utf-8'), stream=True)
-    except requests.exceptions.ProxyError:
-        console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung ke streaming melalui proxy.[/bold red]")
-        raise Exception("Error proxy: Tidak dapat terhubung ke streaming melalui proxy.")
-    except requests.exceptions.RequestException as e:
-        console.print(f"   [bold red]❌ Error koneksi streaming: {e}[/bold red]")
-        raise Exception(f"Error koneksi streaming: {e}")
+    # Retry mechanism for streaming request
+    max_stream_retries = 3
+    for attempt in range(max_stream_retries):
+        try:
+            console.print(f"   [dim]📡 Mencoba koneksi streaming (attempt {attempt + 1}/{max_stream_retries})...[/dim]")
+            response_stream = session.post(f'https://yupp.ai/chat/{chat_id}?stream=true', headers=chat_stream_headers, data=chat_stream_data.encode('utf-8'), stream=True, timeout=60)
+            break
+        except requests.exceptions.ProxyError:
+            console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung ke streaming melalui proxy.[/bold red]")
+            raise Exception("Error proxy: Tidak dapat terhubung ke streaming melalui proxy.")
+        except requests.exceptions.Timeout:
+            if attempt < max_stream_retries - 1:
+                console.print(f"   [yellow]⚠️  Timeout attempt {attempt + 1}, retrying...[/yellow]")
+                time.sleep(2)
+                continue
+            else:
+                console.print("   [bold red]❌ Timeout: Koneksi streaming timeout setelah 60 detik.[/bold red]")
+                raise Exception("Timeout: Koneksi streaming timeout setelah 60 detik.")
+        except requests.exceptions.RequestException as e:
+            if attempt < max_stream_retries - 1:
+                console.print(f"   [yellow]⚠️  Connection error attempt {attempt + 1}, retrying: {e}[/yellow]")
+                time.sleep(2)
+                continue
+            else:
+                console.print(f"   [bold red]❌ Error koneksi streaming: {e}[/bold red]")
+                raise Exception(f"Error koneksi streaming: {e}")
+    else:
+        console.print("   [bold red]❌ Semua attempt streaming gagal[/bold red]")
+        raise Exception("Semua attempt streaming gagal")
     
     if response_stream.status_code == 200:
         console.print("   [green]📡 Koneksi streaming berhasil. Mendengarkan respons...[/green]")
         try:
+            line_count = 0
+            raw_responses = []
+            
             for line in response_stream.iter_lines():
-                if line and line.decode('utf-8').startswith('a:'):
-                    json_string = line.decode('utf-8')[2:]
-                    try:
-                        data = json.loads(json_string)
-                        if 'unclaimedRewardInfo' in data and data['unclaimedRewardInfo'] and 'rewardId' in data['unclaimedRewardInfo']:
-                            extracted_reward_id = data['unclaimedRewardInfo']['rewardId']
-                            console.print(f"   [bold green]✅ Reward ID DITEMUKAN:[/bold green] [yellow]{extracted_reward_id}[/yellow]")
-                            break 
-                    except json.JSONDecodeError: pass
+                if line:
+                    line_count += 1
+                    decoded_line = line.decode('utf-8')
+                    raw_responses.append(decoded_line)
+                    
+                    # Debug: Log first few lines to understand response format
+                    if line_count <= 5:
+                        console.print(f"   [dim]📝 Line {line_count}: {decoded_line[:100]}...[/dim]")
+                    
+                    # Try different response patterns
+                    if decoded_line.startswith('a:'):
+                        json_string = decoded_line[2:]
+                        try:
+                            data = json.loads(json_string)
+                            if 'unclaimedRewardInfo' in data and data['unclaimedRewardInfo'] and 'rewardId' in data['unclaimedRewardInfo']:
+                                extracted_reward_id = data['unclaimedRewardInfo']['rewardId']
+                                console.print(f"   [bold green]✅ Reward ID DITEMUKAN:[/bold green] [yellow]{extracted_reward_id}[/yellow]")
+                                break
+                        except json.JSONDecodeError as e:
+                            console.print(f"   [dim]⚠️  JSON decode error on line {line_count}: {e}[/dim]")
+                            continue
+                    
+                    # Try parsing as direct JSON (without 'a:' prefix)
+                    elif decoded_line.strip().startswith('{'):
+                        try:
+                            data = json.loads(decoded_line)
+                            if 'unclaimedRewardInfo' in data and data['unclaimedRewardInfo'] and 'rewardId' in data['unclaimedRewardInfo']:
+                                extracted_reward_id = data['unclaimedRewardInfo']['rewardId']
+                                console.print(f"   [bold green]✅ Reward ID DITEMUKAN (direct JSON):[/bold green] [yellow]{extracted_reward_id}[/yellow]")
+                                break
+                        except json.JSONDecodeError:
+                            continue
+                    
+                    # Try parsing as array format
+                    elif decoded_line.strip().startswith('['):
+                        try:
+                            data = json.loads(decoded_line)
+                            # Look for reward info in array structure
+                            for item in data:
+                                if isinstance(item, dict) and 'unclaimedRewardInfo' in item and item['unclaimedRewardInfo'] and 'rewardId' in item['unclaimedRewardInfo']:
+                                    extracted_reward_id = item['unclaimedRewardInfo']['rewardId']
+                                    console.print(f"   [bold green]✅ Reward ID DITEMUKAN (array format):[/bold green] [yellow]{extracted_reward_id}[/yellow]")
+                                    break
+                            if extracted_reward_id:
+                                break
+                        except json.JSONDecodeError:
+                            continue
+            
+            # If no reward ID found, provide detailed debugging info
+            if not extracted_reward_id:
+                console.print(f"\n   [yellow]🔍 DEBUG INFO:[/yellow]")
+                console.print(f"   [dim]Total lines received: {line_count}[/dim]")
+                console.print(f"   [dim]Raw responses (first 3):[/dim]")
+                for i, resp in enumerate(raw_responses[:3]):
+                    console.print(f"   [dim]  {i+1}. {resp[:200]}...[/dim]")
+                
+                # Try to find any reward-related content in the responses
+                reward_keywords = ['reward', 'Reward', 'REWARD', 'unclaimedRewardInfo', 'rewardId']
+                found_keywords = []
+                for resp in raw_responses:
+                    for keyword in reward_keywords:
+                        if keyword in resp:
+                            found_keywords.append(keyword)
+                            break
+                
+                if found_keywords:
+                    console.print(f"   [dim]Found reward-related keywords: {list(set(found_keywords))}[/dim]")
+                else:
+                    console.print(f"   [dim]No reward-related keywords found in responses[/dim]")
+                    
+                # Fallback: Try to extract reward ID from the entire response
+                console.print(f"   [yellow]🔄 Mencoba fallback extraction...[/yellow]")
+                try:
+                    # Combine all responses and try to find reward ID
+                    full_response = ''.join(raw_responses)
+                    
+                    # Try to find reward ID using regex patterns
+                    
+                    # Pattern 1: Look for "rewardId": "value"
+                    reward_patterns = [
+                        r'"rewardId"\s*:\s*"([^"]+)"',
+                        r'"rewardId"\s*:\s*([^,\s}]+)',
+                        r'rewardId["\s]*:["\s]*([^"\s,}]+)',
+                    ]
+                    
+                    for pattern in reward_patterns:
+                        matches = re.findall(pattern, full_response)
+                        if matches:
+                            extracted_reward_id = matches[0]
+                            console.print(f"   [bold green]✅ Reward ID DITEMUKAN (regex fallback):[/bold green] [yellow]{extracted_reward_id}[/yellow]")
+                            break
+                    
+                    # Pattern 2: Look for unclaimedRewardInfo structure
+                    if not extracted_reward_id:
+                        unclaimed_pattern = r'"unclaimedRewardInfo"\s*:\s*\{[^}]*"rewardId"\s*:\s*"([^"]+)"'
+                        matches = re.findall(unclaimed_pattern, full_response)
+                        if matches:
+                            extracted_reward_id = matches[0]
+                            console.print(f"   [bold green]✅ Reward ID DITEMUKAN (unclaimedRewardInfo fallback):[/bold green] [yellow]{extracted_reward_id}[/yellow]")
+                            
+                except Exception as e:
+                    console.print(f"   [dim]Fallback extraction failed: {e}[/dim]")
+            
         except requests.exceptions.ChunkedEncodingError as e:
             console.print(f"[bold red]❌ Streaming error: {e}[/bold red]")
             raise Exception(f"Streaming error: {e}")
+        except Exception as e:
+            console.print(f"[bold red]❌ Unexpected error during streaming: {e}[/bold red]")
+            raise Exception(f"Unexpected streaming error: {e}")
+    else:
+        console.print(f"   [bold red]❌ Streaming request failed with status: {response_stream.status_code}[/bold red]")
+        console.print(f"   [dim]Response headers: {dict(response_stream.headers)}[/dim]")
+        try:
+            error_text = response_stream.text
+            console.print(f"   [dim]Error response: {error_text[:200]}...[/dim]")
+        except:
+            pass
+        raise Exception(f"Streaming request failed with status: {response_stream.status_code}")
     
     if not extracted_reward_id:
         console.print("\n--> ❌ [bold red]Peringatan: Streaming selesai tetapi tidak ada Reward ID yang ditemukan.[/bold red]")
