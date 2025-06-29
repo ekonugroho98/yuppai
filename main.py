@@ -631,18 +631,37 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
 
     console.print("\n[bold]1-3.[/bold] ⚙️  [cyan]Menjalankan Inisiasi & Mengirim Pesan...[/cyan]")
     
-    # Add random delay before starting to avoid rate limiting
-    initial_delay = random.uniform(2, 8)
-    console.print(f"   [dim]⏳ Menunggu {initial_delay:.1f} detik sebelum memulai...[/dim]")
+    # Simulate human-like behavior before starting
+    initial_delay = random.uniform(3, 8)  # Longer initial delay
+    console.print(f"   [dim]⏳ Menunggu {initial_delay:.1f} detik sebelum memulai (simulasi human behavior)...[/dim]")
     time.sleep(initial_delay)
     
     try:
-        session.post('https://yupp.ai/api/authentication/session', json={"userId": user_id})
+        # First, visit the main page like a real browser
+        console.print("   [dim]🌐 Mengunjungi halaman utama...[/dim]")
+        main_page_headers = get_realistic_headers(device_profile)
+        session.get('https://yupp.ai', headers=main_page_headers, timeout=15)
+        
+        # Simulate time spent on page
+        page_delay = random.uniform(2, 5)
+        console.print(f"   [dim]⏳ Menunggu {page_delay:.1f} detik di halaman...[/dim]")
+        time.sleep(page_delay)
+        
+        # Now make API calls with realistic headers
+        api_headers = get_api_headers(device_profile)
+        
+        session.post('https://yupp.ai/api/authentication/session', 
+                    json={"userId": user_id}, 
+                    headers=api_headers,
+                    timeout=15)
         
         # Add small delay between API calls
         time.sleep(random.uniform(1, 3))
         
-        session.post('https://yupp.ai/api/trpc/logging.logEvent?batch=1', json={"0":{"json":{"event":"start_chat","params":{"Chat_ID":chat_id,"Turn_ID":turn_id}}}})
+        session.post('https://yupp.ai/api/trpc/logging.logEvent?batch=1', 
+                    json={"0":{"json":{"event":"start_chat","params":{"Chat_ID":chat_id,"Turn_ID":turn_id}}}},
+                    headers=api_headers,
+                    timeout=15)
     except requests.exceptions.ProxyError:
         console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung melalui proxy yang diberikan.[/bold red]")
         raise Exception("Error proxy: Tidak dapat terhubung melalui proxy yang diberikan.")
