@@ -9,6 +9,148 @@
 4. **Missing dependencies**
 5. **Response format differences**
 
+## 🔥 **MASALAH KHUSUS: Error 429 (Rate Limiting)**
+
+### Gejala:
+```
+❌ Still rate limited (429)
+❌ Streaming request failed with status: 429
+```
+
+### Penyebab:
+- **Server yupp.ai** mendeteksi terlalu banyak request
+- **Vercel protection** aktif dan memblokir IP/proxy
+- **Proxy IP** sudah di-blacklist oleh server
+- **VPS IP** sudah di-rate limit
+
+### Solusi Cepat:
+
+#### 1. Test Semua Proxy untuk Rate Limiting
+```bash
+python3 bypass_rate_limit.py
+```
+
+#### 2. Test Tanpa Proxy
+```bash
+python3 test_without_proxy.py
+```
+
+#### 3. Gunakan Proxy Rotation
+```bash
+python3 manage_proxies.py
+```
+
+#### 4. Test dengan Delay yang Lebih Baik
+```bash
+python3 test_with_delay.py
+```
+
+### Strategi Bypass Rate Limiting:
+
+#### A. Proxy Rotation
+1. **Test semua proxy** untuk menemukan yang tidak rate limited
+2. **Gunakan proxy yang berbeda** untuk setiap account
+3. **Rotate proxy** setiap beberapa request
+
+#### B. Delay Strategy
+1. **Random delays** antara request (2-8 detik)
+2. **Longer delays** antara account (15-30 detik)
+3. **Exponential backoff** untuk retry
+
+#### C. IP Rotation
+1. **Gunakan residential proxy** (lebih sulit di-detect)
+2. **Contact proxy provider** untuk IP rotation
+3. **Gunakan VPN** sebagai alternatif
+
+### Troubleshooting 429 Error:
+
+#### Step 1: Identify the Source
+```bash
+# Test tanpa proxy
+python3 test_without_proxy.py
+
+# Test dengan proxy
+python3 bypass_rate_limit.py
+```
+
+#### Step 2: Find Working Proxy
+```bash
+# Test semua proxy
+python3 manage_proxies.py
+
+# Pilih proxy terbaik
+# Update proxy.txt dengan proxy yang berfungsi
+```
+
+#### Step 3: Use Better Delays
+```bash
+# Test dengan delay yang lebih baik
+python3 test_with_delay.py
+
+# Atau jalankan bot dengan sequential mode
+python3 main.py
+# Pilih: Sequential mode, 1 account, delay yang lebih lama
+```
+
+#### Step 4: Alternative Solutions
+1. **Tunggu 30-60 menit** sebelum test lagi
+2. **Gunakan proxy service yang berbeda**
+3. **Test dengan account yang berbeda**
+4. **Kurangi jumlah concurrent requests**
+
+### Advanced Bypass Techniques:
+
+#### 1. User-Agent Rotation
+```python
+user_agents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36...',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36...'
+]
+```
+
+#### 2. Request Pattern Variation
+- **Random delays** antara request
+- **Different request sequences**
+- **Vary request headers**
+
+#### 3. Session Management
+- **Fresh session** untuk setiap account
+- **Clear cookies** antara request
+- **Different device profiles**
+
+### Monitoring Rate Limiting:
+
+#### Check Rate Limit Status:
+```bash
+# Test basic connection
+curl -I https://yupp.ai
+
+# Test dengan proxy
+curl --proxy socks5://user:pass@host:port -I https://yupp.ai
+```
+
+#### Monitor Response Headers:
+- **X-RateLimit-Remaining**: Requests remaining
+- **X-RateLimit-Reset**: Time until reset
+- **Retry-After**: Wait time for retry
+
+### Emergency Solutions:
+
+#### Jika Semua Proxy Rate Limited:
+1. **Tunggu 1-2 jam** sebelum test lagi
+2. **Contact proxy provider** untuk IP rotation
+3. **Gunakan residential proxy** service
+4. **Test dari lokasi yang berbeda**
+
+#### Jika VPS IP Rate Limited:
+1. **Restart VPS** untuk mendapatkan IP baru
+2. **Contact VPS provider** untuk IP change
+3. **Use VPN** pada VPS
+4. **Migrate ke VPS provider lain**
+
+---
+
 ## 🔥 **MASALAH KHUSUS: Error 407 NO_USER**
 
 ### Gejala:
