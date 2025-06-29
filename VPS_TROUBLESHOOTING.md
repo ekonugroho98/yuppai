@@ -9,6 +9,68 @@
 4. **Missing dependencies**
 5. **Response format differences**
 
+## 🔥 **MASALAH KHUSUS: Error 407 NO_USER**
+
+### Gejala:
+```
+❌ Basic connection failed: HTTPSConnectionPool(host='yupp.ai', port=443): 
+Max retries exceeded with url: / (Caused by ProxyError('Unable to connect to proxy', 
+OSError('Tunnel connection failed: 407 NO_USER')))
+```
+
+### Penyebab:
+- **Proxy authentication error**: Username atau password salah/format tidak benar
+- **Format proxy tidak sesuai**: Protocol tidak ditentukan atau format salah
+
+### Solusi Cepat:
+
+#### 1. Check Proxy Format
+```bash
+python3 fix_proxy.py
+```
+
+#### 2. Test Proxy Connection
+```bash
+python3 test_proxy.py
+```
+
+#### 3. Create New Proxy Config
+```bash
+python3 fix_proxy.py --create
+```
+
+#### 4. Show Common Fixes
+```bash
+python3 fix_proxy.py --fix
+```
+
+### Format Proxy yang Benar:
+```
+# SOCKS5 dengan authentication
+socks5://username:password@host:port
+
+# HTTP dengan authentication  
+http://username:password@host:port
+
+# HTTPS dengan authentication
+https://username:password@host:port
+
+# Tanpa authentication
+socks5://host:port
+http://host:port
+```
+
+### Troubleshooting 407 Error:
+1. **Check username:password** - pastikan tidak ada spasi atau karakter khusus
+2. **Verify protocol** - pastikan socks5://, http://, atau https:// ditentukan
+3. **Test dengan curl**:
+   ```bash
+   curl --proxy socks5://username:password@host:port https://httpbin.org/ip
+   ```
+4. **Check proxy service** - pastikan proxy server aktif dan credentials valid
+
+---
+
 ### Solusi Step-by-Step
 
 #### 1. Setup Environment VPS

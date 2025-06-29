@@ -32,15 +32,57 @@ def test_streaming_connection():
     try:
         with open('proxy.txt', 'r') as f:
             proxy_line = f.read().strip()
-            if proxy_line:
-                proxy_config = {
-                    'http': proxy_line,
-                    'https': proxy_line
-                }
-                print(f"🌐 Using proxy: {proxy_line[:50]}...")
-                session.proxies.update(proxy_config)
-    except:
-        print("🌐 No proxy configuration found")
+            if proxy_line and not proxy_line.startswith('#'):
+                # Parse proxy format
+                if '@' in proxy_line:
+                    # Format: protocol://username:password@host:port
+                    if proxy_line.startswith(('http://', 'https://', 'socks5://', 'socks4://')):
+                        proxy_config = {
+                            'http': proxy_line,
+                            'https': proxy_line
+                        }
+                    else:
+                        # Assume socks5 if no protocol specified
+                        proxy_config = {
+                            'http': f'socks5://{proxy_line}',
+                            'https': f'socks5://{proxy_line}'
+                        }
+                else:
+                    # Format: host:port (no authentication)
+                    if proxy_line.startswith(('http://', 'https://', 'socks5://', 'socks4://')):
+                        proxy_config = {
+                            'http': proxy_line,
+                            'https': proxy_line
+                        }
+                    else:
+                        # Assume http if no protocol specified
+                        proxy_config = {
+                            'http': f'http://{proxy_line}',
+                            'https': f'http://{proxy_line}'
+                        }
+                
+                if proxy_config:
+                    print(f"🌐 Using proxy: {proxy_line[:50]}...")
+                    session.proxies.update(proxy_config)
+                    
+                    # Test proxy connectivity first
+                    print("🌐 Testing proxy connectivity...")
+                    try:
+                        proxy_test = session.get('https://httpbin.org/ip', timeout=10)
+                        print(f"✅ Proxy test successful: {proxy_test.json()}")
+                    except requests.exceptions.ProxyError as e:
+                        print(f"❌ Proxy authentication failed: {e}")
+                        print("💡 Check your proxy credentials in proxy.txt")
+                        print("💡 Format should be: username:password@host:port")
+                        return False
+                    except Exception as e:
+                        print(f"❌ Proxy connection failed: {e}")
+                        return False
+    except FileNotFoundError:
+        print("🌐 No proxy.txt found, running without proxy")
+    except Exception as e:
+        print(f"🌐 Error reading proxy.txt: {e}")
+        print("🌐 Running without proxy")
     
     # Test basic connection first
     try:
