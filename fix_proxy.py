@@ -13,16 +13,26 @@ def check_proxy_format():
     
     try:
         with open('proxy.txt', 'r') as f:
-            proxy_line = f.read().strip()
+            proxy_lines = f.readlines()
     except FileNotFoundError:
         print("❌ proxy.txt tidak ditemukan")
         return False
     
-    if not proxy_line or proxy_line.startswith('#'):
+    # Filter out empty lines and comments
+    proxy_lines = [line.strip() for line in proxy_lines if line.strip() and not line.strip().startswith('#')]
+    
+    if not proxy_lines:
         print("❌ proxy.txt kosong atau hanya berisi komentar")
         return False
     
+    # Use only the first proxy line
+    proxy_line = proxy_lines[0]
     print(f"📝 Current proxy line: {proxy_line}")
+    
+    if len(proxy_lines) > 1:
+        print(f"⚠️  Found {len(proxy_lines)} proxy lines, analyzing only the first one")
+        print(f"   Other lines: {proxy_lines[1:3]}..." if len(proxy_lines) > 3 else f"   Other lines: {proxy_lines[1:]}")
+        print("💡 Use manage_proxies.py to test all proxies")
     
     # Analyze the format
     if '@' in proxy_line:

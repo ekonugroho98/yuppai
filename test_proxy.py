@@ -15,16 +15,25 @@ def test_proxy_configuration():
     # Read proxy configuration
     try:
         with open('proxy.txt', 'r') as f:
-            proxy_line = f.read().strip()
+            proxy_lines = f.readlines()
     except FileNotFoundError:
         print("❌ proxy.txt tidak ditemukan")
         return False
     
-    if not proxy_line or proxy_line.startswith('#'):
+    # Filter out empty lines and comments
+    proxy_lines = [line.strip() for line in proxy_lines if line.strip() and not line.strip().startswith('#')]
+    
+    if not proxy_lines:
         print("❌ proxy.txt kosong atau hanya berisi komentar")
         return False
     
-    print(f"📝 Proxy line: {proxy_line}")
+    # Use only the first proxy line
+    proxy_line = proxy_lines[0]
+    print(f"📝 Using first proxy line: {proxy_line}")
+    
+    if len(proxy_lines) > 1:
+        print(f"⚠️  Found {len(proxy_lines)} proxy lines, using only the first one")
+        print(f"   Other lines: {proxy_lines[1:3]}..." if len(proxy_lines) > 3 else f"   Other lines: {proxy_lines[1:]}")
     
     # Parse proxy format
     if '@' in proxy_line:
