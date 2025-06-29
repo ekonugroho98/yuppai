@@ -549,17 +549,61 @@ Timestamp: {timestamp}"""
             console.print("--> Menggunakan pesan fallback.", style="yellow")
             return "Make any question from the discussion on crypto."
 
+def get_realistic_headers(device_profile):
+    """Generate realistic browser headers based on device profile"""
+    base_headers = {
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'en-US,en;q=0.9,id;q=0.8',
+        'accept-encoding': 'gzip, deflate, br',
+        'dnt': '1',
+        'connection': 'keep-alive',
+        'upgrade-insecure-requests': '1',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'none',
+        'sec-fetch-user': '?1',
+        'cache-control': 'max-age=0'
+    }
+    
+    # Add device-specific headers
+    if 'sec-ch-ua' in device_profile:
+        base_headers['sec-ch-ua'] = device_profile['sec-ch-ua']
+    if 'sec-ch-ua-mobile' in device_profile:
+        base_headers['sec-ch-ua-mobile'] = device_profile['sec-ch-ua-mobile']
+    if 'sec-ch-ua-platform' in device_profile:
+        base_headers['sec-ch-ua-platform'] = device_profile['sec-ch-ua-platform']
+    
+    # Add user-agent
+    if 'user-agent' in device_profile:
+        base_headers['user-agent'] = device_profile['user-agent']
+    
+    return base_headers
+
+def get_api_headers(device_profile):
+    """Generate realistic API headers"""
+    base_headers = get_realistic_headers(device_profile)
+    
+    # Override for API requests
+    api_headers = {
+        **base_headers,
+        'accept': '*/*',
+        'content-type': 'application/json',
+        'origin': 'https://yupp.ai',
+        'referer': 'https://yupp.ai/',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin'
+    }
+    
+    return api_headers
+
 # --- PERUBAHAN: Fungsi utama sekarang menerima profil device, proxy, cookies, dan user_id ---
 def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_config: dict = None, cookies: dict = None, account_id: int = 1, user_id: str = "37cf0952-9403-4d29-bf7a-1d1c08368a4a"):
     """Menjalankan satu siklus lengkap proses bot dengan pesan, profil device, proxy, cookies, dan user_id yang sudah ditentukan."""
     console.print(f"▶️  [bold]Pesan yang akan dikirim:[/bold] [italic]'{message_to_send[:80]}...'[/italic]")
     
     # --- PERUBAHAN: Menggabungkan header dasar dengan profil device yang dipilih ---
-    base_headers = {
-        'accept': '*/*', 'accept-language': 'en-US,en;q=0.9,id;q=0.8', 'origin': 'https://yupp.ai', 'priority': 'u=1, i',
-        'sec-fetch-dest': 'empty', 'sec-fetch-mode': 'cors', 'sec-fetch-site': 'same-origin',
-        **device_profile # Ini akan menambahkan user-agent, sec-ch-ua, dll.
-    }
+    base_headers = get_api_headers(device_profile)
     
     session = requests.Session()
     session.headers.update(base_headers)
