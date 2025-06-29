@@ -6,6 +6,8 @@ import uuid
 import time
 import google.generativeai as genai
 import random
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, IntPrompt
@@ -25,7 +27,7 @@ console = Console()
 
 # --- PENAMBAHAN: Konfigurasi Proxy ---
 def load_proxy_config(filename="proxy.txt"):
-    """Memuat konfigurasi proxy dari file proxy.txt"""
+    """Memuat konfigurasi proxy dari file proxy.txt dengan dukungan multiple protocol"""
     if not os.path.exists(filename):
         return None
     
@@ -38,10 +40,14 @@ def load_proxy_config(filename="proxy.txt"):
             # Format yang didukung:
             # 1. http://username:password@host:port
             # 2. http://host:port
-            # 3. socks5://username:password@host:port
-            # 4. socks5://host:port
+            # 3. https://username:password@host:port
+            # 4. https://host:port
+            # 5. socks5://username:password@host:port
+            # 6. socks5://host:port
+            # 7. socks4://username:password@host:port
+            # 8. socks4://host:port
             
-            if proxy_line.startswith(('http://', 'https://', 'socks5://')):
+            if proxy_line.startswith(('http://', 'https://', 'socks5://', 'socks4://')):
                 return {
                     'http': proxy_line,
                     'https': proxy_line
@@ -56,6 +62,31 @@ def load_proxy_config(filename="proxy.txt"):
         console.print(f"--> ⚠️  [yellow]Error membaca proxy.txt: {e}[/yellow]")
         return None
 
+def validate_proxy_config(proxy_config):
+    """Validasi konfigurasi proxy dan cek dependency yang diperlukan"""
+    if not proxy_config:
+        return True
+    
+    try:
+        # Cek apakah ada SOCKS proxy
+        has_socks = any('socks' in url.lower() for url in proxy_config.values())
+        
+        if has_socks:
+            try:
+                import socks
+                import socket
+                console.print("✅ [green]SOCKS proxy support tersedia[/green]")
+                return True
+            except ImportError:
+                console.print("❌ [bold red]Error: SOCKS proxy memerlukan dependency tambahan[/bold red]")
+                console.print("💡 Install dengan: pip install requests[socks] PySocks")
+                return False
+        
+        return True
+    except Exception as e:
+        console.print(f"⚠️  [yellow]Warning: Error validasi proxy: {e}[/yellow]")
+        return True
+
 def get_proxy_choice():
     """Mendapatkan pilihan proxy dari user"""
     menu_text = Text("\n1. Tidak menggunakan proxy\n2. Gunakan proxy dari proxy.txt\n3. Masukkan proxy manual\n", justify="left")
@@ -69,8 +100,12 @@ def get_manual_proxy():
     console.print("\n[bold cyan]Format proxy yang didukung:[/bold cyan]")
     console.print("• http://username:password@host:port")
     console.print("• http://host:port")
+    console.print("• https://username:password@host:port")
+    console.print("• https://host:port")
     console.print("• socks5://username:password@host:port")
     console.print("• socks5://host:port")
+    console.print("• socks4://username:password@host:port")
+    console.print("• socks4://host:port")
     console.print("• host:port (akan otomatis ditambahkan http://)")
     
     proxy_input = Prompt.ask("\n[bold]Masukkan proxy[/bold] (kosongkan untuk tidak menggunakan)")
@@ -78,16 +113,23 @@ def get_manual_proxy():
         return None
     
     proxy_input = proxy_input.strip()
-    if proxy_input.startswith(('http://', 'https://', 'socks5://')):
-        return {
+    if proxy_input.startswith(('http://', 'https://', 'socks5://', 'socks4://')):
+        proxy_config = {
             'http': proxy_input,
             'https': proxy_input
         }
+        
+        # Validasi proxy config
+        if validate_proxy_config(proxy_config):
+            return proxy_config
+        else:
+            return None
     else:
-        return {
+        proxy_config = {
             'http': f'http://{proxy_input}',
             'https': f'http://{proxy_input}'
         }
+        return proxy_config
 
 # --- PENAMBAHAN: Multiple Accounts/Cookies Support ---
 def load_multiple_cookies_from_file(filename="cookies.txt"):
@@ -135,7 +177,7 @@ def load_multiple_cookies_from_file(filename="cookies.txt"):
                 if line.startswith('PROXY:'):
                     proxy_line = line[6:].strip()
                     if proxy_line:
-                        if proxy_line.startswith(('http://', 'https://', 'socks5://')):
+                        if proxy_line.startswith(('http://', 'https://', 'socks5://', 'socks4://')):
                             current_proxy = {
                                 'http': proxy_line,
                                 'https': proxy_line
@@ -145,6 +187,11 @@ def load_multiple_cookies_from_file(filename="cookies.txt"):
                                 'http': f'http://{proxy_line}',
                                 'https': f'http://{proxy_line}'
                             }
+                        
+                        # Validasi proxy config
+                        if not validate_proxy_config(current_proxy):
+                            console.print(f"   [yellow]⚠️  Proxy tidak valid untuk account di baris {line_num}, menggunakan tanpa proxy[/yellow]")
+                            current_proxy = None
                     continue
                 
                 # Parse user_id jika baris dimulai dengan "USER_ID:"
@@ -360,27 +407,28 @@ def generate_message_with_gemini(api_key):
         # Random seed berdasarkan waktu
         random.seed(time.time())
         
-        # Topik yang bisa dipilih secara random
-        topics = ["politik", "crypto", "teknologi", "sains", "ekonomi", "sosial", "lingkungan", "pendidikan", "kesehatan", "keamanan"]
+        # Topics that can be randomly selected
+        topics = ["politics", "crypto", "technology", "science", "economy", "society", "environment", "education", "health", "security"]
         selected_topic = random.choice(topics)
-        
-        # Kata kunci random untuk variasi
-        keywords = ["dampak", "tantangan", "risiko", "solusi", "strategi", "perubahan", "inovasi", "krisis", "peluang", "ancaman"]
+
+        # Random keyword for variation
+        keywords = ["impact", "challenge", "risk", "solution", "strategy", "change", "innovation", "crisis", "opportunity", "threat"]
         selected_keyword = random.choice(keywords)
-        
-        # Panjang random untuk variasi
+
+        # Random length for variation
         min_length = random.randint(50, 80)
         max_length = random.randint(250, 350)
-        
-        # Timestamp untuk menghindari cache
+
+        # Timestamp to avoid cache
         timestamp = int(time.time())
-        
-        prompt = f"""Buatkan 1 pertanyaan atau perintah dalam bahasa Indonesia dengan panjang {min_length}-{max_length} huruf. 
-Fokus pada topik: {selected_topic}. 
-Gunakan kata kunci: {selected_keyword}.
-Pertanyaan harus sulit dijawab dan memerlukan analisis mendalam.
-Berikan hasilnya langsung berupa pertanyaan/perintah saja, tanpa penjelasan tambahan.
-Timestamp: {timestamp}"""
+
+        prompt = f"""Create 1 question or instruction in English with a length of {min_length}-{max_length} characters.
+        Focus on the topic: {selected_topic}.
+        Use the keyword: {selected_keyword}.
+        The question must be difficult to answer and require deep analysis.
+        Provide the result directly as the question/instruction only, without any additional explanation.
+        Timestamp: {timestamp}"""
+
         
         response = model.generate_content(prompt)
         return response.text.strip()
@@ -428,27 +476,28 @@ def generate_message_with_deepseek(api_key):
         # Random seed berdasarkan waktu
         random.seed(time.time())
         
-        # Topik yang bisa dipilih secara random
-        topics = ["politik", "crypto", "teknologi", "sains", "ekonomi", "sosial", "lingkungan", "pendidikan", "kesehatan", "keamanan"]
+        # Topics that can be randomly selected
+        topics = ["politics", "crypto", "technology", "science", "economy", "social", "environment", "education", "health", "security"]
         selected_topic = random.choice(topics)
-        
-        # Kata kunci random untuk variasi
-        keywords = ["dampak", "tantangan", "risiko", "solusi", "strategi", "perubahan", "inovasi", "krisis", "peluang", "ancaman"]
+
+        # Random keywords for variation
+        keywords = ["impact", "challenges", "risk", "solution", "strategy", "change", "innovation", "crisis", "opportunity", "threat"]
         selected_keyword = random.choice(keywords)
-        
-        # Panjang random untuk variasi
+
+        # Random length for variation
         min_length = random.randint(50, 80)
         max_length = random.randint(250, 350)
-        
-        # Timestamp untuk menghindari cache
+
+        # Timestamp to avoid cache
         timestamp = int(time.time())
-        
-        prompt = f"""Buatkan 1 pertanyaan atau perintah dalam bahasa Indonesia dengan panjang {min_length}-{max_length} huruf. 
-Fokus pada topik: {selected_topic}. 
-Gunakan kata kunci: {selected_keyword}.
-Pertanyaan harus sulit dijawab dan memerlukan analisis mendalam.
-Berikan hasilnya langsung berupa pertanyaan/perintah saja, tanpa penjelasan tambahan.
-Timestamp: {timestamp}"""
+
+        prompt = f"""Create 1 question or command in Indonesian with a length of {min_length}-{max_length} characters.
+        Focus on the topic: {selected_topic}.
+        Use the keyword: {selected_keyword}.
+        The question must be difficult to answer and require deep analysis.
+        Provide the result directly as a question/command only, without any additional explanation.
+        Timestamp: {timestamp}"""
+
         
         response = client.chat_completion(
             prompt=prompt,
@@ -520,7 +569,7 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
         console.print(f"🍪 [dim]Menggunakan Account #{account_id}[/dim]")
     else:
         console.print("❌ [bold red]Error: Tidak ada cookies yang diberikan![/bold red]")
-        return
+        raise Exception("Tidak ada cookies yang diberikan!")
     
     # --- PENAMBAHAN: Konfigurasi proxy ---
     if proxy_config:
@@ -542,10 +591,10 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
         session.post('https://yupp.ai/api/trpc/logging.logEvent?batch=1', json={"0":{"json":{"event":"start_chat","params":{"Chat_ID":chat_id,"Turn_ID":turn_id}}}})
     except requests.exceptions.ProxyError:
         console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung melalui proxy yang diberikan.[/bold red]")
-        return
+        raise Exception("Error proxy: Tidak dapat terhubung melalui proxy yang diberikan.")
     except requests.exceptions.RequestException as e:
         console.print(f"   [bold red]❌ Error koneksi: {e}[/bold red]")
-        return
+        raise Exception(f"Error koneksi: {e}")
     
     extracted_reward_id = None
     chat_stream_headers = {**session.headers, 'content-type': 'text/plain;charset=UTF-8', 'next-action': '7f48888536e2f0c0163640837db291777c39cc40c3'}
@@ -556,10 +605,10 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
         response_stream = session.post(f'https://yupp.ai/chat/{chat_id}?stream=true', headers=chat_stream_headers, data=chat_stream_data.encode('utf-8'), stream=True)
     except requests.exceptions.ProxyError:
         console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung ke streaming melalui proxy.[/bold red]")
-        return
+        raise Exception("Error proxy: Tidak dapat terhubung ke streaming melalui proxy.")
     except requests.exceptions.RequestException as e:
         console.print(f"   [bold red]❌ Error koneksi streaming: {e}[/bold red]")
-        return
+        raise Exception(f"Error koneksi streaming: {e}")
     
     if response_stream.status_code == 200:
         console.print("   [green]📡 Koneksi streaming berhasil. Mendengarkan respons...[/green]")
@@ -576,11 +625,11 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
                     except json.JSONDecodeError: pass
         except requests.exceptions.ChunkedEncodingError as e:
             console.print(f"[bold red]❌ Streaming error: {e}[/bold red]")
-            return
+            raise Exception(f"Streaming error: {e}")
     
     if not extracted_reward_id:
         console.print("\n--> ❌ [bold red]Peringatan: Streaming selesai tetapi tidak ada Reward ID yang ditemukan.[/bold red]")
-        return
+        raise Exception("Tidak ada Reward ID yang ditemukan dalam streaming response")
     
     console.print("[bold]4.[/bold]   ✍️  [cyan]Mengirim Log Event Umpan Balik...[/cyan]")
     try:
@@ -596,10 +645,10 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
         response5 = session.post('https://yupp.ai/api/trpc/reward.claim?batch=1', json={"0":{"json":{"rewardId": extracted_reward_id}}})
     except requests.exceptions.ProxyError:
         console.print("   [bold red]❌ Error proxy: Tidak dapat mengklaim reward melalui proxy.[/bold red]")
-        return
+        raise Exception("Error proxy: Tidak dapat mengklaim reward melalui proxy.")
     except requests.exceptions.RequestException as e:
         console.print(f"   [bold red]❌ Error koneksi klaim: {e}[/bold red]")
-        return
+        raise Exception(f"Error koneksi klaim: {e}")
     
     if response5.status_code == 200:
         try:
@@ -612,15 +661,201 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
                 console.print("   [bold red]❌ PROSES KLAIM GAGAL (dari server)![/bold red]")
                 json_syntax = Syntax(json.dumps(claim_response, indent=2), "json", theme="monokai", line_numbers=True)
                 console.print(Panel(json_syntax, title=f"Respons Error - Account #{account_id}", border_style="red"))
+                raise Exception(f"Klaim gagal dari server: {claim_response[0].get('error', 'Unknown error')}")
         except requests.exceptions.JSONDecodeError:
             console.print(f"--> ❌ [bold red]Klaim Gagal, respons bukan JSON:[/bold red] {response5.text}")
+            raise Exception(f"Klaim gagal, respons bukan JSON: {response5.text}")
     else:
         console.print(f"--> ❌ [bold red]PROSES KLAIM GAGAL! Status HTTP:[/bold red] {response5.status_code}")
+        raise Exception(f"Klaim gagal dengan status HTTP: {response5.status_code}")
 
+# --- PENAMBAHAN: Multi-threading untuk multiple accounts ---
+def run_multiple_accounts_parallel(accounts_batch, message_source, batch_number, max_workers=5, choice='1', api_key_gemini="", api_key_deepseek="", pesan_list=[], enable_retry=False, max_retries=2, retry_delay=30):
+    """Menjalankan multiple accounts secara parallel dalam satu batch dengan pesan berbeda per account dan retry support"""
+    console.print(f"\n[bold cyan]🚀 MENJALANKAN BATCH #{batch_number} - {len(accounts_batch)} ACCOUNTS PARALLEL[/bold cyan]")
+    if enable_retry:
+        console.print(f"🔄 [yellow]Retry mode aktif: maksimal {max_retries} retry, jeda {retry_delay}s[/yellow]")
+    
+    # Thread-safe console untuk logging
+    thread_console = Console()
+    
+    def run_single_account_thread(account_data, account_idx):
+        """Wrapper function untuk menjalankan single account dalam thread"""
+        if enable_retry:
+            return run_single_account_with_retry(
+                account_data, account_idx, choice, api_key_gemini, api_key_deepseek, pesan_list, max_retries, retry_delay
+            )
+        else:
+            # Mode lama tanpa retry
+            thread_name = threading.current_thread().name
+            
+            # Generate pesan berbeda untuk setiap account
+            message_for_this_account = ""
+            if choice == '1':
+                message_for_this_account = random.choice(pesan_list)
+            elif choice == '2':
+                message_for_this_account = generate_message_with_ai(api_key_gemini, "gemini")
+            elif choice == '3':
+                message_for_this_account = generate_message_with_ai(api_key_deepseek, "deepseek")
+            
+            thread_console.print(f"📝 [dim]{thread_name} - Account #{account_idx} pesan:[/] [italic dim]'{message_for_this_account[:50]}...'[/italic dim]")
+            
+            try:
+                device_profile = account_data.get('device_profile', get_random_device_profile())
+                thread_console.print(f"🖥️  [dim]{thread_name} - Account #{account_idx}:[/] [italic dim]{device_profile['name']}[/italic dim]")
+                
+                run_single_bot_process(
+                    message_for_this_account, 
+                    device_profile, 
+                    account_data['proxy'], 
+                    account_data['cookies'], 
+                    account_idx,
+                    account_data['user_id']
+                )
+                thread_console.print(f"✅ [green]{thread_name} - Account #{account_idx} SUCCESS[/green]")
+                return f"Account #{account_idx} - SUCCESS"
+            except Exception as e:
+                thread_console.print(f"❌ [bold red]{thread_name} - Account #{account_idx} ERROR: {e}[/bold red]")
+                return f"Account #{account_idx} - FAILED: {e}"
+    
+    # Jalankan accounts dalam thread pool
+    with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix=f"Batch{batch_number}") as executor:
+        # Submit semua tasks
+        future_to_account = {
+            executor.submit(run_single_account_thread, account_data, idx): idx 
+            for idx, account_data in enumerate(accounts_batch, 1)
+        }
+        
+        # Tunggu semua tasks selesai
+        results = []
+        success_count = 0
+        failed_count = 0
+        
+        for future in as_completed(future_to_account):
+            account_idx = future_to_account[future]
+            try:
+                result = future.result()
+                results.append(result)
+                if "SUCCESS" in result:
+                    success_count += 1
+                else:
+                    failed_count += 1
+            except Exception as e:
+                console.print(f"❌ [bold red]Account #{account_idx} - EXCEPTION: {e}[/bold red]")
+                results.append(f"Account #{account_idx} - EXCEPTION: {e}")
+                failed_count += 1
+    
+    console.print(f"\n[bold green]🎉 BATCH #{batch_number} SELESAI[/bold green]")
+    console.print(f"📊 [green]Success: {success_count}[/green] | [red]Failed: {failed_count}[/red] | [blue]Total: {len(results)}[/blue]")
+    return results
+
+def chunk_accounts(accounts_list, chunk_size=5):
+    """Membagi list accounts menjadi chunks dengan ukuran tertentu"""
+    return [accounts_list[i:i + chunk_size] for i in range(0, len(accounts_list), chunk_size)]
+
+def get_threading_choice():
+    """Mendapatkan pilihan threading dari user"""
+    menu_text = Text("\n1. Sequential (satu per satu)\n2. Parallel (5 accounts bersamaan)\n3. Custom parallel (pilih jumlah threads)\n", justify="left")
+    menu_panel = Panel(menu_text, title="[bold cyan]PILIH MODE EXECUTION[/bold cyan]", border_style="magenta", padding=(1, 2))
+    console.print(menu_panel)
+    choice = Prompt.ask("[bold]Masukkan pilihan Anda[/bold]", choices=['1', '2', '3'], default='2')
+    return choice
+
+def get_custom_thread_count():
+    """Mendapatkan jumlah custom threads dari user"""
+    while True:
+        try:
+            thread_count = IntPrompt.ask("[bold]Masukkan jumlah maksimal threads bersamaan (1-20)[/bold]", default=5)
+            if 1 <= thread_count <= 20:
+                return thread_count
+            else:
+                console.print("[red]Masukkan angka antara 1-20[/red]")
+        except ValueError:
+            console.print("[red]Masukkan angka yang valid[/red]")
+
+def get_retry_settings():
+    """Mendapatkan pengaturan retry dari user"""
+    console.print("\n[bold cyan]⚙️  KONFIGURASI RETRY[/bold cyan]")
+    enable_retry = Prompt.ask("[bold]Aktifkan retry untuk account yang gagal?[/bold]", choices=['y', 'n'], default='y')
+    
+    if enable_retry == 'y':
+        while True:
+            try:
+                max_retries = IntPrompt.ask("[bold]Maksimal jumlah retry per account (1-5)[/bold]", default=2)
+                if 1 <= max_retries <= 5:
+                    break
+                else:
+                    console.print("[red]Masukkan angka antara 1-5[/red]")
+            except ValueError:
+                console.print("[red]Masukkan angka yang valid[/red]")
+        
+        while True:
+            try:
+                retry_delay = IntPrompt.ask("[bold]Jeda antar retry dalam detik (5-300)[/bold]", default=30)
+                if 5 <= retry_delay <= 300:
+                    break
+                else:
+                    console.print("[red]Masukkan angka antara 5-300[/red]")
+            except ValueError:
+                console.print("[red]Masukkan angka yang valid[/red]")
+        
+        return True, max_retries, retry_delay
+    else:
+        return False, 0, 0
+
+def run_single_account_with_retry(account_data, account_idx, choice, api_key_gemini, api_key_deepseek, pesan_list, max_retries=2, retry_delay=30):
+    """Menjalankan single account dengan sistem retry"""
+    thread_name = threading.current_thread().name
+    thread_console = Console()
+    
+    for attempt in range(max_retries + 1):  # +1 untuk attempt pertama
+        try:
+            # Generate pesan untuk attempt ini
+            message_for_this_account = ""
+            if choice == '1':
+                message_for_this_account = random.choice(pesan_list)
+            elif choice == '2':
+                message_for_this_account = generate_message_with_ai(api_key_gemini, "gemini")
+            elif choice == '3':
+                message_for_this_account = generate_message_with_ai(api_key_deepseek, "deepseek")
+            
+            if attempt > 0:
+                thread_console.print(f"🔄 [yellow]{thread_name} - Account #{account_idx} RETRY #{attempt} dengan pesan:[/yellow] [italic dim]'{message_for_this_account[:50]}...'[/italic dim]")
+            else:
+                thread_console.print(f"📝 [dim]{thread_name} - Account #{account_idx} pesan:[/] [italic dim]'{message_for_this_account[:50]}...'[/italic dim]")
+            
+            device_profile = account_data.get('device_profile', get_random_device_profile())
+            thread_console.print(f"🖥️  [dim]{thread_name} - Account #{account_idx}:[/] [italic dim]{device_profile['name']}[/italic dim]")
+            
+            # Jalankan bot process
+            run_single_bot_process(
+                message_for_this_account, 
+                device_profile, 
+                account_data['proxy'], 
+                account_data['cookies'], 
+                account_idx,
+                account_data['user_id']
+            )
+            
+            thread_console.print(f"✅ [green]{thread_name} - Account #{account_idx} SUCCESS[/green]")
+            return f"Account #{account_idx} - SUCCESS (attempt {attempt + 1})"
+            
+        except Exception as e:
+            error_msg = f"❌ [bold red]{thread_name} - Account #{account_idx} ERROR (attempt {attempt + 1}): {e}[/bold red]"
+            thread_console.print(error_msg)
+            
+            if attempt < max_retries:
+                thread_console.print(f"⏳ [yellow]{thread_name} - Account #{account_idx} menunggu {retry_delay} detik sebelum retry...[/yellow]")
+                time.sleep(retry_delay)
+            else:
+                thread_console.print(f"💀 [bold red]{thread_name} - Account #{account_idx} GAGAL setelah {max_retries + 1} attempts[/bold red]")
+                return f"Account #{account_idx} - FAILED after {max_retries + 1} attempts: {e}"
+    
+    return f"Account #{account_idx} - UNEXPECTED ERROR"
 
 # --- BAGIAN UTAMA UNTUK EKSEKUSI ---
 if __name__ == "__main__":
-    console.print(Panel("[bold magenta]🚀 Yupp.ai Auto-Bot v4.3 (Device Spoofing + Multi-Proxy + Multi-Account) 🚀[/bold magenta]", subtitle="by Gemini"))
+    console.print(Panel("[bold magenta]🚀 Yupp.ai Auto-Bot v4.4 (Multi-Threading + Device Spoofing + Multi-Proxy + Multi-Account) 🚀[/bold magenta]", subtitle="by Gemini"))
     
     # --- PENAMBAHAN: Konfigurasi proxy dengan mode yang lebih fleksibel ---
     proxy_mode = get_proxy_mode()
@@ -630,7 +865,11 @@ if __name__ == "__main__":
         # 1 proxy untuk semua account
         global_proxy_config = load_proxy_config()
         if global_proxy_config:
-            console.print(f"✅ [green]Proxy global berhasil dimuat dari proxy.txt[/green]")
+            if validate_proxy_config(global_proxy_config):
+                console.print(f"✅ [green]Proxy global berhasil dimuat dari proxy.txt[/green]")
+            else:
+                console.print("❌ [bold red]Proxy global tidak valid, menggunakan tanpa proxy[/bold red]")
+                global_proxy_config = None
         else:
             console.print("--> ⚠️  [yellow]proxy.txt tidak ditemukan atau kosong. Lanjut tanpa proxy.[/yellow]")
     elif proxy_mode == '4':
@@ -708,49 +947,101 @@ if __name__ == "__main__":
         ai_provider = "deepseek"
         console.print("\n✅ [green]Pilihan: Menggunakan DeepSeek AI untuk menghasilkan pesan di setiap loop.[/green]")
 
+    # --- PENAMBAHAN: Konfigurasi retry ---
+    enable_retry, max_retries, retry_delay = get_retry_settings()
+
+    # --- PENAMBAHAN: Konfigurasi threading ---
+    threading_choice = get_threading_choice()
+    max_workers = 5  # Default untuk parallel mode
+    
+    if threading_choice == '3':
+        max_workers = get_custom_thread_count()
+        console.print(f"✅ [green]Custom threading: maksimal {max_workers} threads bersamaan[/green]")
+    elif threading_choice == '2':
+        console.print("✅ [green]Parallel mode: 5 accounts bersamaan[/green]")
+    else:
+        console.print("✅ [green]Sequential mode: satu per satu[/green]")
+
     console.print("\n[bold]--- Pengaturan Selesai. Memulai Looping. ---[/bold]")
     time.sleep(2)
 
     for i in range(loop_count):
         console.print(Panel(f"LOOP KE-{i + 1} DARI {loop_count}", style="bold blue", padding=1))
         
-        # --- PENAMBAHAN: Rotasi account untuk setiap loop ---
-        for account_idx, account_data in enumerate(accounts_list, 1):
-            console.print(Panel(f"ACCOUNT #{account_idx} DARI {len(accounts_list)}", style="bold yellow", padding=1))
+        if threading_choice == '1':
+            # --- SEQUENTIAL MODE (satu per satu) ---
+            for account_idx, account_data in enumerate(accounts_list, 1):
+                console.print(Panel(f"ACCOUNT #{account_idx} DARI {len(accounts_list)}", style="bold yellow", padding=1))
+                
+                if enable_retry:
+                    # Gunakan retry function
+                    result = run_single_account_with_retry(
+                        account_data, account_idx, choice, api_key_gemini, api_key_deepseek, pesan_list, max_retries, retry_delay
+                    )
+                    console.print(f"📊 [bold]Hasil:[/bold] {result}")
+                else:
+                    # Mode lama tanpa retry
+                    # --- PERUBAHAN: Generate pesan berbeda untuk setiap account ---
+                    message_for_this_account = ""
+                    if choice == '1':
+                        message_for_this_account = random.choice(pesan_list)
+                    elif choice == '2':
+                        message_for_this_account = generate_message_with_ai(api_key_gemini, "gemini")
+                    elif choice == '3':
+                        message_for_this_account = generate_message_with_ai(api_key_deepseek, "deepseek")
+                    
+                    console.print(f"📝 [bold]Pesan untuk Account #{account_idx}:[/bold] [italic]'{message_for_this_account[:80]}...'[/italic]")
+                    
+                    device_profile = account_data.get('device_profile', get_random_device_profile())
+                    console.print(f"🖥️  [dim]Menggunakan profil device:[/] [italic dim]{device_profile['name']} - {device_profile['user-agent'][:50]}...[/italic dim]")
+                    
+                    run_single_bot_process(
+                        message_for_this_account, 
+                        device_profile, 
+                        account_data['proxy'], 
+                        account_data['cookies'], 
+                        account_idx,
+                        account_data['user_id']
+                    )
+                
+                # Jeda antar account (kecuali account terakhir)
+                if account_idx < len(accounts_list):
+                    console.print("\n[dim]Jeda 10 detik sebelum account berikutnya...[/dim]")
+                    time.sleep(10)
+        else:
+            # --- PARALLEL MODE (batch processing) ---
+            # Bagi accounts menjadi chunks
+            account_chunks = chunk_accounts(accounts_list, max_workers)
+            console.print(f"📊 [bold]Accounts dibagi menjadi {len(account_chunks)} batch(es)[/bold]")
             
-            # --- PERUBAHAN: Generate message untuk setiap account ---
-            message_for_this_account = ""
-            if choice == '1':
-                message_for_this_account = random.choice(pesan_list)
-            elif choice == '2':
-                message_for_this_account = generate_message_with_ai(api_key_gemini, "gemini")
-            elif choice == '3':
-                message_for_this_account = generate_message_with_ai(api_key_deepseek, "deepseek")
-            
-            # --- PERUBAHAN: Menggunakan device profile yang sudah diassign ke account ---
-            device_profile = account_data.get('device_profile', get_random_device_profile())
-            console.print(f"🖥️  [dim]Menggunakan profil device:[/] [italic dim]{device_profile['name']} - {device_profile['user-agent'][:50]}...[/italic dim]")
-            
-            # --- PERUBAHAN: Mengirim profil device, proxy, dan cookies ke fungsi ---
-            run_single_bot_process(
-                message_for_this_account, 
-                device_profile, 
-                account_data['proxy'], 
-                account_data['cookies'], 
-                account_idx,
-                account_data['user_id']
-            )
-            
-            # Jeda antar account (kecuali account terakhir)
-            if account_idx < len(accounts_list):
-                console.print("\n[dim]Jeda 10 detik sebelum account berikutnya...[/dim]")
-                time.sleep(10)
+            for batch_idx, account_batch in enumerate(account_chunks, 1):
+                console.print(f"\n[bold cyan]🔄 MEMPROSES BATCH #{batch_idx} DARI {len(account_chunks)}[/bold cyan]")
+                
+                # Jalankan batch secara parallel
+                batch_results = run_multiple_accounts_parallel(
+                    account_batch, 
+                    None,  # message_source tidak diperlukan lagi
+                    batch_idx, 
+                    max_workers,
+                    choice,
+                    api_key_gemini,
+                    api_key_deepseek,
+                    pesan_list,
+                    enable_retry,
+                    max_retries,
+                    retry_delay
+                )
+                
+                # Jeda antar batch (kecuali batch terakhir)
+                if batch_idx < len(account_chunks):
+                    console.print("\n[dim]Jeda 15 detik sebelum batch berikutnya...[/dim]")
+                    time.sleep(15)
         
+        # Jeda antar loop (kecuali loop terakhir)
         if i < loop_count - 1:
             console.print()
-            # Mempertahankan jeda 60 detik Anda
             with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%")) as progress:
-                task = progress.add_task("[yellow]Jeda...", total=60)
+                task = progress.add_task("[yellow]Jeda antar loop...", total=60)
                 for _ in range(60):
                     time.sleep(1)
                     progress.update(task, advance=1)

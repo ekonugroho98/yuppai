@@ -1,4 +1,6 @@
 google-generativeai
 requests
+requests[socks]
+PySocks
 rich
 deepseek

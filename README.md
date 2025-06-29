@@ -1,4 +1,4 @@
-# 🤖 Yupp.ai Auto-Bot v4.3
+# 🤖 Yupp.ai Auto-Bot v4.4
 
 **Advanced automation bot for Yupp.ai with multi-account support, proxy rotation, device spoofing, and AI-powered message generation.**
 
@@ -239,7 +239,7 @@ When you run the bot, it will guide you through an interactive setup:
 
 ### Example Session
 ```
-🚀 Yupp.ai Auto-Bot v4.3 (Device Spoofing + Multi-Proxy + Multi-Account) 🚀
+🚀 Yupp.ai Auto-Bot v4.4 (Device Spoofing + Multi-Proxy + Multi-Account) 🚀
 by Gemini
 
 ┌─ PILIH MODE PROXY ─┐
@@ -503,4 +503,241 @@ For support and questions:
 
 **Made with ❤️ for the Yupp.ai community**
 
-*Last updated: December 2024* 
+*Last updated: December 2024*
+
+## 🚀 Fitur Baru v4.4
+
+### Multi-Threading Support
+- **Sequential Mode**: Menjalankan accounts satu per satu (mode lama)
+- **Parallel Mode**: Menjalankan 5 accounts bersamaan secara parallel
+- **Custom Parallel**: Menentukan jumlah threads sendiri (1-20 threads)
+
+### Pesan Berbeda Per Account
+- **Setiap account mendapat pesan yang berbeda** dalam satu batch
+- **Random dari file**: Setiap account mendapat pesan random dari pesan.txt
+- **AI Generate**: Setiap account mendapat pertanyaan baru dari AI
+- **Lebih natural**: Menghindari deteksi pattern yang sama
+
+### Auto-Retry System
+- **Retry otomatis** untuk account yang gagal
+- **Konfigurasi retry**: Pilih jumlah maksimal retry (1-5)
+- **Jeda retry**: Set jeda antar retry (5-300 detik)
+- **Pesan berbeda**: Setiap retry menggunakan pesan baru
+- **Logging detail**: Track setiap attempt dan hasilnya
+
+### Device Spoofing
+- 8 device profiles berbeda (Windows, macOS, Android, iOS, Linux)
+- Random device profile per account atau assign manual
+- User-Agent dan header browser yang realistis
+
+### Multi-Proxy Support
+- 1 proxy untuk semua accounts
+- Proxy individual per account
+- Proxy manual input
+- Support HTTP, HTTPS, dan SOCKS5
+
+### Multi-Account Support
+- Single cookie (cookie.txt) - backward compatibility
+- Multiple cookies (cookies.txt) dengan konfigurasi per account
+- User ID custom per account
+- Device profile assignment per account
+
+## 📁 File Konfigurasi
+
+### cookies.txt (Multi-Account)
+```
+# ACCOUNT 1
+PROXY:http://proxy1.example.com:8080
+USER_ID:37cf0952-9403-4d29-bf7a-1d1c08368a4a
+DEVICE_PROFILE:Windows Chrome
+sessionid=abc123def456
+csrftoken=xyz789abc123
+
+---
+
+# ACCOUNT 2
+PROXY:http://proxy2.example.com:8080
+USER_ID:48df1a63-0514-5e30-cg8b-2e2d19479b5b
+DEVICE_PROFILE:macOS Chrome
+sessionid=def456ghi789
+csrftoken=abc123def456
+```
+
+### cookie.txt (Single Account)
+```
+sessionid=your_session_id_here
+csrftoken=your_csrf_token_here
+```
+
+### proxy.txt
+```
+http://username:password@host:port
+```
+
+### apikey.txt
+```
+your_gemini_api_key_here
+```
+
+### deepseek_apikey.txt
+```
+your_deepseek_api_key_here
+```
+
+## 🎯 Cara Penggunaan
+
+1. **Setup Konfigurasi**
+   - Pilih mode proxy (tidak ada/global/individual/manual)
+   - Pilih mode cookie (single/multiple)
+   - Pilih mode threading (sequential/parallel/custom)
+
+2. **Konfigurasi Threading**
+   - **Sequential**: Satu account per waktu (aman, lambat)
+   - **Parallel**: 5 accounts bersamaan (cepat, perlu proxy)
+   - **Custom**: Pilih jumlah threads (1-20)
+
+3. **Pilih Sumber Pesan**
+   - File pesan.txt (random per baris)
+   - Gemini AI (generate otomatis)
+   - DeepSeek AI (generate otomatis)
+
+4. **Jalankan Bot**
+   - Bot akan memproses semua accounts sesuai mode yang dipilih
+   - Progress dan status ditampilkan secara real-time
+   - **Setiap account akan mendapat pesan yang berbeda**
+
+## 📊 Contoh Output dengan Pesan Berbeda
+
+### Parallel Mode (5 accounts bersamaan)
+```
+🚀 MENJALANKAN BATCH #1 - 5 ACCOUNTS PARALLEL
+
+📝 Batch1ThreadPoolExecutor-0_0 - Account #1 pesan: 'Bagaimana dampak teknologi blockchain terhadap industri keuangan...'
+📝 Batch1ThreadPoolExecutor-0_1 - Account #2 pesan: 'Apa tantangan utama dalam pengembangan kendaraan otonom...'
+📝 Batch1ThreadPoolExecutor-0_2 - Account #3 pesan: 'Bagaimana AI dapat membantu dalam penanganan perubahan...'
+📝 Batch1ThreadPoolExecutor-0_3 - Account #4 pesan: 'Apa risiko keamanan siber yang paling mengancam...'
+📝 Batch1ThreadPoolExecutor-0_4 - Account #5 pesan: 'Bagaimana teknologi 5G akan mengubah cara kita hidup...'
+
+🖥️  Batch1ThreadPoolExecutor-0_0 - Account #1: Windows Chrome
+🖥️  Batch1ThreadPoolExecutor-0_1 - Account #2: macOS Chrome
+🖥️  Batch1ThreadPoolExecutor-0_2 - Account #3: Android Chrome
+🖥️  Batch1ThreadPoolExecutor-0_3 - Account #4: Windows Firefox
+🖥️  Batch1ThreadPoolExecutor-0_4 - Account #5: macOS Safari
+
+✅ Batch1ThreadPoolExecutor-0_0 - Account #1 SUCCESS
+✅ Batch1ThreadPoolExecutor-0_1 - Account #2 SUCCESS
+✅ Batch1ThreadPoolExecutor-0_2 - Account #3 SUCCESS
+✅ Batch1ThreadPoolExecutor-0_3 - Account #4 SUCCESS
+✅ Batch1ThreadPoolExecutor-0_4 - Account #5 SUCCESS
+
+🎉 BATCH #1 SELESAI
+📊 Success: 5 | Failed: 0 | Total: 5
+```
+
+### Sequential Mode dengan Retry
+```
+ACCOUNT #1 DARI 5
+
+📝 Pesan untuk Account #1: 'Bagaimana dampak teknologi blockchain terhadap industri keuangan...'
+🖥️  Menggunakan profil device: Windows Chrome - Mozilla/5.0 (Windows NT 10.0; Win64; x64)...
+❌ Account #1 ERROR (attempt 1): Connection timeout
+⏳ Account #1 menunggu 30 detik sebelum retry...
+🔄 Account #1 RETRY #1 dengan pesan: 'Apa tantangan utama dalam pengembangan kendaraan otonom...'
+🖥️  Menggunakan profil device: Windows Chrome - Mozilla/5.0 (Windows NT 10.0; Win64; x64)...
+✅ Account #1 SUCCESS
+📊 Hasil: Account #1 - SUCCESS (attempt 2)
+```
+
+## 🔧 Device Profiles
+
+1. **Windows Chrome** - Desktop Windows
+2. **macOS Chrome** - Desktop macOS  
+3. **Android Chrome** - Mobile Android
+4. **Windows Firefox** - Desktop Windows
+5. **macOS Safari** - Desktop macOS
+6. **iOS Safari** - Mobile iOS
+7. **Linux Firefox** - Desktop Linux
+8. **Windows Edge** - Desktop Windows
+
+## 📊 Monitoring & Logging
+
+- Real-time progress untuk setiap thread
+- Success/failed count per batch
+- Detailed error logging
+- Thread-safe console output
+
+## ⚠️ Tips Penggunaan
+
+1. **Untuk Parallel Mode**:
+   - Gunakan proxy yang stabil dan cepat
+   - Monitor rate limiting dari server
+   - Jangan set thread terlalu tinggi
+
+2. **Untuk Sequential Mode**:
+   - Cocok untuk testing
+   - Lebih aman dari deteksi
+   - Tidak memerlukan proxy khusus
+
+3. **Device Profiles**:
+   - Random untuk variasi
+   - Assign manual untuk konsistensi
+   - Sesuaikan dengan target audience
+
+## 🛠️ Requirements
+
+```bash
+pip install -r requirements.txt
+```
+
+## 📝 Changelog
+
+### v4.4
+- ✅ Multi-threading support (Sequential/Parallel/Custom)
+- ✅ Thread-safe logging dan monitoring
+- ✅ Batch processing untuk multiple accounts
+- ✅ Improved error handling untuk threads
+- ✅ Success/failed statistics per batch
+- ✅ **Auto-retry system** untuk account yang gagal
+- ✅ **Pesan berbeda per account** dalam satu batch
+- ✅ **Konfigurasi retry** (jumlah retry, jeda antar retry)
+
+### v4.3
+- ✅ Device spoofing dengan 8 profiles
+- ✅ Multi-proxy support
+- ✅ Multi-account support
+- ✅ DeepSeek AI integration
+
+## 🔒 Disclaimer
+
+Tool ini dibuat untuk tujuan edukasi dan testing. Gunakan dengan bertanggung jawab dan sesuai dengan Terms of Service dari Yupp.ai. 
+
+## ⚡ Mode Threading
+
+### Sequential Mode
+- Menjalankan accounts satu per satu
+- Cocok untuk testing atau jumlah account sedikit
+- Tidak memerlukan proxy yang kuat
+- Setiap account mendapat pesan berbeda
+
+### Parallel Mode (5 threads)
+- Menjalankan 5 accounts bersamaan
+- Sangat cepat untuk batch processing
+- Memerlukan proxy yang stabil
+- Setiap account dalam batch mendapat pesan berbeda
+
+### Custom Parallel Mode
+- Pilih jumlah threads (1-20)
+- Fleksibel sesuai kebutuhan
+- Sesuaikan dengan kapasitas proxy
+- Setiap account mendapat pesan berbeda
+
+## 🔧 Device Profiles
+
+1. **Windows Chrome** - Desktop Windows
+2. **macOS Chrome** - Desktop macOS  
+3. **Android Chrome** - Mobile Android
+4. **Windows Firefox** - Desktop Windows
+5. **macOS Safari** - Desktop macOS
+6. **iOS Safari** - Mobile iOS
+7. **Linux Firefox** - Desktop Linux
+8. **Windows Edge** - Desktop Windows 
