@@ -587,8 +587,17 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
 
     console.print("\n[bold]1-3.[/bold] ⚙️  [cyan]Menjalankan Inisiasi & Mengirim Pesan...[/cyan]")
     
+    # Add random delay before starting to avoid rate limiting
+    initial_delay = random.uniform(2, 8)
+    console.print(f"   [dim]⏳ Menunggu {initial_delay:.1f} detik sebelum memulai...[/dim]")
+    time.sleep(initial_delay)
+    
     try:
         session.post('https://yupp.ai/api/authentication/session', json={"userId": user_id})
+        
+        # Add small delay between API calls
+        time.sleep(random.uniform(1, 3))
+        
         session.post('https://yupp.ai/api/trpc/logging.logEvent?batch=1', json={"0":{"json":{"event":"start_chat","params":{"Chat_ID":chat_id,"Turn_ID":turn_id}}}})
     except requests.exceptions.ProxyError:
         console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung melalui proxy yang diberikan.[/bold red]")
@@ -607,7 +616,28 @@ def run_single_bot_process(message_to_send: str, device_profile: dict, proxy_con
     for attempt in range(max_stream_retries):
         try:
             console.print(f"   [dim]📡 Mencoba koneksi streaming (attempt {attempt + 1}/{max_stream_retries})...[/dim]")
+            
+            # Add random delay between attempts to avoid rate limiting
+            if attempt > 0:
+                delay = random.uniform(5, 15)  # Random delay 5-15 seconds
+                console.print(f"   [dim]⏳ Menunggu {delay:.1f} detik sebelum retry...[/dim]")
+                time.sleep(delay)
+            
             response_stream = session.post(f'https://yupp.ai/chat/{chat_id}?stream=true', headers=chat_stream_headers, data=chat_stream_data.encode('utf-8'), stream=True, timeout=60)
+            
+            # Check for rate limiting
+            if response_stream.status_code == 429:
+                console.print(f"   [yellow]⚠️  Rate limited (429) - attempt {attempt + 1}[/yellow]")
+                if attempt < max_stream_retries - 1:
+                    # Wait longer for rate limiting
+                    wait_time = random.uniform(30, 60)  # 30-60 seconds
+                    console.print(f"   [dim]⏳ Menunggu {wait_time:.1f} detik karena rate limiting...[/dim]")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    console.print(f"   [bold red]❌ Rate limited setelah {max_stream_retries} attempts[/bold red]")
+                    raise Exception(f"Rate limited setelah {max_stream_retries} attempts")
+            
             break
         except requests.exceptions.ProxyError:
             console.print("   [bold red]❌ Error proxy: Tidak dapat terhubung ke streaming melalui proxy.[/bold red]")
@@ -1137,8 +1167,9 @@ if __name__ == "__main__":
                 
                 # Jeda antar account (kecuali account terakhir)
                 if account_idx < len(accounts_list):
-                    console.print("\n[dim]Jeda 10 detik sebelum account berikutnya...[/dim]")
-                    time.sleep(10)
+                    delay_between_accounts = random.uniform(15, 30)  # Random delay 15-30 seconds
+                    console.print(f"\n[dim]⏳ Jeda {delay_between_accounts:.1f} detik sebelum account berikutnya...[/dim]")
+                    time.sleep(delay_between_accounts)
         else:
             # --- PARALLEL MODE (batch processing) ---
             # Bagi accounts menjadi chunks
